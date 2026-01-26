@@ -1,0 +1,17 @@
+[package]
+name = "rust_sub"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+flatbuffers = "25.12.19"
+tokio = "1.49.0"
+zenoh = {version = "1", features = ["shared-memory"]}
+
+
+
+# this defines the binaries to build in the nix build schema
+# the name of this package is the name of the binary that will be built.
+[[bin]]
+name = "rust-zenoh-app"
+path = "src/main.rs"
