@@ -1,120 +1,156 @@
 use flatbuffers::FlatBufferBuilder;
-use mavlink::common::HIL_STATE_QUATERNION_DATA;
+use mavlink::Connection;
+use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
 use mavlink::error::MessageReadError;
-use tokio::time::Sleep;
-use tokio::{process, time};
-
+use mavlink::{self, MavConnection, MavlinkVersion, Message};
 use std::error::Error;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::{self, sleep};
 use std::time::Duration;
-use zenoh;
-
-use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
-use mavlink::{self, MavConnection, MavlinkVersion, MessageData};
-
-use crate::MAV_generated::mavlink_fb::HilStateQuaternion;
+use zenoh::{self, Wait};
 
 mod MAV_generated;
+use crate::MAV_generated::mavlink_fb::HilStateQuaternion;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    // Configuration
+    let mavlink_conn_str = std::env::var("MAVLINK_CONN").unwrap_or_else(|_| {
+        "file:/Users/isaacpruett/Documents/PolyUAS/CUASC-2026/mavlink_bridge/test.txt".to_string()
+    });
+
+    // Setup Zenoh
     let session =
-        zenoh::open(zenoh::Config::from_env().unwrap_or(zenoh::Config::default())).await?;
+        zenoh::open(zenoh::Config::from_env().unwrap_or(zenoh::Config::default())).wait()?;
 
-    let mut mavconn = mavlink::connect::<MavMessage>("serial:/dev/ttyTHS1:921600")
-        .expect("Failed to connect UART to MAVLink");
-
-    let state_pub = session.declare_publisher("mavlink/state").await?;
-
-    // Wait for subscribers to be ready
-    tokio::time::sleep(Duration::from_millis(500)).await;
-
+    // Setup MAVLink
+    let mut mavconn =
+        mavlink::connect::<MavMessage>(&mavlink_conn_str).expect("Failed to connect to MAVLink");
     mavconn.set_protocol_version(MavlinkVersion::V2);
-
     let vehicle = Arc::new(mavconn);
 
-    tokio::spawn(async move {
-        let vehicle = vehicle.clone();
-        loop {
-            let res = vehicle.send_default(&MavMessage::HEARTBEAT(
-                mavlink::ardupilotmega::HEARTBEAT_DATA {
-                    custom_mode: 0,
-                    mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_QUADROTOR,
-                    autopilot: mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_ARDUPILOTMEGA,
-                    base_mode: MavModeFlag::empty(),
-                    system_status: mavlink::ardupilotmega::MavState::MAV_STATE_STANDBY,
-                    mavlink_version: 0x3,
-                },
-            ));
+    // Setup publisher
+    let state_pub = session.declare_publisher("mavlink/state").wait()?;
+    sleep(Duration::from_millis(500)); // Wait for subscribers
 
-            match res {
-                Ok(_) => {
-                    time::sleep(Duration::from_secs(1)).await;
-                }
-                Err(e) => {
-                    eprintln!("Heartbeat send failed: {:?}", e);
-                }
-            }
-            //time::sleep(Duration::from_millis(10)).await;
-        }
-    });
+    // Shutdown signal
+    let running = Arc::new(AtomicBool::new(true));
 
-    tokio::spawn(async move {
-        let vehicle = vehicle.clone();
-        loop {
-            match vehicle.try_recv() {
-                Ok((_header, msg)) => match msg {
-                    MavMessage::HIL_STATE_QUATERNION(data) => {
-                        println!("{:?}", data);
+    // Heartbeat thread
+    let vehicle_heartbeat = vehicle.clone();
+    let running_heartbeat = running.clone();
+    let heartbeat_handle =
+        thread::spawn(move || heartbeat_loop(&vehicle_heartbeat, &running_heartbeat));
 
-                        let mut builder = FlatBufferBuilder::new();
+    // Initialize state stream
+    initialize_state_stream(&vehicle, Duration::from_millis(20))
+        .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))?;
 
-                        // Create the struct directly
-                        let state = HilStateQuaternion::new(
-                            data.time_usec,
-                            &data.attitude_quaternion,
-                            data.rollspeed,
-                            data.pitchspeed,
-                            data.yawspeed,
-                            data.lat,
-                            data.lon,
-                            data.alt,
-                            data.vx,
-                            data.vy,
-                            data.vz,
-                            data.ind_airspeed,
-                            data.true_airspeed,
-                            data.xacc,
-                            data.yacc,
-                            data.zacc,
-                        );
+    // Receiver thread
+    let vehicle_recv = vehicle.clone();
+    let running_recv = running.clone();
+    let receiver_handle =
+        thread::spawn(move || receiver_loop(&vehicle_recv, &state_pub, &running_recv));
 
-                        builder.push(state);
+    // Wait for Ctrl+C
+    ctrlc::set_handler(move || {
+        running.store(false, Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
 
-                        // Get the serialized bytes
-                        let payload = builder.finished_data();
+    // Join threads
+    heartbeat_handle.join().unwrap();
+    receiver_handle.join().unwrap();
 
-                        state_pub.put(payload).await?
-                    }
-                    _ => {}
-                },
-                Err(e) => {
-                    match e {
-                        MessageReadError::Io(e) => {
-                            if e.kind() == std::io::ErrorKind::WouldBlock {
-                                // no messages to recv.
-                                time::sleep(Duration::from_millis(5));
-                            } else {
-                                eprintln!("IO Message Read Err: {:?}", e);
-                            }
-                        }
-                        _ => {} // block parser errors. skill issue.
-                    }
-                }
-            }
-        }
-    });
-
-    session.close().await?;
     Ok(())
+}
+
+fn heartbeat_loop(vehicle: &Arc<Connection<MavMessage>>, running: &Arc<AtomicBool>) {
+    let heartbeat_msg = MavMessage::HEARTBEAT(mavlink::ardupilotmega::HEARTBEAT_DATA {
+        custom_mode: 0,
+        mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_QUADROTOR,
+        autopilot: mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_ARDUPILOTMEGA,
+        base_mode: MavModeFlag::empty(),
+        system_status: mavlink::ardupilotmega::MavState::MAV_STATE_STANDBY,
+        mavlink_version: 0x3,
+    });
+    // println!("Heartbeat ENABLED!");
+
+    while running.load(Ordering::Acquire) {
+        if let Err(e) = vehicle.send_default(&heartbeat_msg) {
+            eprintln!("Heartbeat send failed: {:?}", e);
+        }
+        sleep(Duration::from_secs(1));
+    }
+}
+
+fn receiver_loop(
+    vehicle: &Arc<Connection<MavMessage>>,
+    state_pub: &zenoh::pubsub::Publisher,
+    running: &Arc<AtomicBool>,
+) {
+    while running.load(Ordering::Acquire) {
+        match vehicle.recv() {
+            Ok((_header, MavMessage::HIL_STATE_QUATERNION(data))) => {
+                publish_state(state_pub, &data);
+            }
+            Ok(_) => {} // Ignore other messages
+            Err(MessageReadError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                sleep(Duration::from_millis(10000));
+            }
+            Err(e) => {
+                eprintln!("Message reciever read error: {:?}", e);
+            }
+        }
+    }
+}
+
+fn publish_state(
+    publisher: &zenoh::pubsub::Publisher,
+    data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
+) {
+    let mut builder = FlatBufferBuilder::new();
+
+    let state = HilStateQuaternion::new(
+        data.time_usec,
+        &data.attitude_quaternion,
+        data.rollspeed,
+        data.pitchspeed,
+        data.yawspeed,
+        data.lat,
+        data.lon,
+        data.alt,
+        data.vx,
+        data.vy,
+        data.vz,
+        data.ind_airspeed,
+        data.true_airspeed,
+        data.xacc,
+        data.yacc,
+        data.zacc,
+    );
+
+    builder.push(state);
+    let payload = builder.finished_data();
+
+    if let Err(e) = publisher.put(payload).wait() {
+        eprintln!("Error publishing state: {:?}", e);
+    }
+}
+
+fn initialize_state_stream(
+    vehicle: &Arc<Connection<MavMessage>>,
+    interval: Duration,
+) -> Result<usize, mavlink::error::MessageWriteError> {
+    vehicle.send_default(&MavMessage::COMMAND_LONG(
+        mavlink::ardupilotmega::COMMAND_LONG_DATA {
+            target_system: 1,
+            target_component: 1,
+            command: mavlink::ardupilotmega::MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
+            confirmation: 0,
+            param1: MavMessage::HIL_STATE_QUATERNION(Default::default()).message_id() as f32,
+            param2: interval.as_micros() as f32,
+            ..Default::default()
+        },
+    ))
 }
