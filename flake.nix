@@ -7,12 +7,12 @@
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
-
+    mavlink_bridge.url = "./mavlink_bridge";
   };
 
   outputs = inputs @ { flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" "x86_64-windows" "aarch64-windows"];
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
       imports = [
         # ./module.nix
@@ -51,6 +51,8 @@
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
 
+          mavlink = inputs.mavlink_bridge.packages.${system}.default;
+
           # Launcher: Spins up all with shared config
           demo = pkgs.writeShellApplication {
             name = "demo-ping-pong-zenoh";
@@ -84,6 +86,7 @@
 
             self'.packages.hello_world
 
+            self'.packages.mavlink
 
             pkgs.just
             pkgs.uv
