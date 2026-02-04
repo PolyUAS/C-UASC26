@@ -7,11 +7,12 @@
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
+
   };
 
   outputs = inputs @ { flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" "x86_64-windows" "aarch64-windows"];
 
       imports = [
         # ./module.nix
@@ -82,6 +83,7 @@
             self'.packages.python_demo
 
             self'.packages.hello_world
+
 
             pkgs.just
             pkgs.uv
