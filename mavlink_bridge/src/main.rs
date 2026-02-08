@@ -1,4 +1,3 @@
-use flatbuffers::FlatBufferBuilder;
 use mavlink::Connection;
 use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
 use mavlink::error::MessageReadError;
@@ -10,8 +9,7 @@ use std::thread::{self, sleep};
 use std::time::Duration;
 use zenoh::{self, Wait};
 
-mod MAV_generated;
-use crate::MAV_generated::mavlink_fb::HilStateQuaternion;
+mod state_capnp;
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Configuration
@@ -92,11 +90,11 @@ fn receiver_loop(
     while running.load(Ordering::Acquire) {
         match vehicle.recv() {
             Ok((_header, MavMessage::HIL_STATE_QUATERNION(data))) => {
-                publish_state(state_pub, &data);
+                publish_state(state_pub, &data).expect("Failed to publish state: ");
             }
             Ok(_) => {} // Ignore other messages
             Err(MessageReadError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                sleep(Duration::from_millis(10000));
+                sleep(Duration::from_millis(100));
             }
             Err(e) => {
                 eprintln!("Message reciever read error: {:?}", e);
@@ -108,34 +106,52 @@ fn receiver_loop(
 fn publish_state(
     publisher: &zenoh::pubsub::Publisher,
     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
-) {
-    let mut builder = FlatBufferBuilder::new();
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Build Cap'n Proto message
+    let mut message = capnp::message::Builder::new_default();
+    let mut state = message.init_root::<state_capnp::hil_state_quaternion::Builder>();
 
-    let state = HilStateQuaternion::new(
-        data.time_usec,
-        &data.attitude_quaternion,
-        data.rollspeed,
-        data.pitchspeed,
-        data.yawspeed,
-        data.lat,
-        data.lon,
-        data.alt,
-        data.vx,
-        data.vy,
-        data.vz,
-        data.ind_airspeed,
-        data.true_airspeed,
-        data.xacc,
-        data.yacc,
-        data.zacc,
-    );
+    // Set timestamp
+    state.set_time_usec(data.time_usec);
 
-    builder.push(state);
-    let payload = builder.finished_data();
+    // Set attitude quaternion (w, x, y, z)
+    let mut quat = state.reborrow().init_attitude_quaternion();
+    quat.set_w(data.attitude_quaternion[0]);
+    quat.set_x(data.attitude_quaternion[1]);
+    quat.set_y(data.attitude_quaternion[2]);
+    quat.set_z(data.attitude_quaternion[3]);
 
-    if let Err(e) = publisher.put(payload).wait() {
-        eprintln!("Error publishing state: {:?}", e);
-    }
+    // Set angular rates
+    state.set_rollspeed(data.rollspeed);
+    state.set_pitchspeed(data.pitchspeed);
+    state.set_yawspeed(data.yawspeed);
+
+    // Set position
+    state.set_lat(data.lat);
+    state.set_lon(data.lon);
+    state.set_alt(data.alt);
+
+    // Set velocities
+    state.set_vx(data.vx);
+    state.set_vy(data.vy);
+    state.set_vz(data.vz);
+
+    // Set airspeed
+    state.set_ind_airspeed(data.ind_airspeed);
+    state.set_true_airspeed(data.true_airspeed);
+
+    // Set accelerations
+    state.set_xacc(data.xacc);
+    state.set_yacc(data.yacc);
+    state.set_zacc(data.zacc);
+
+    // Serialize to bytes
+    let payload = capnp::serialize::write_message_segments_to_words(&message);
+
+    // Publish
+    publisher.put(payload).wait()?;
+
+    Ok(())
 }
 
 fn initialize_state_stream(

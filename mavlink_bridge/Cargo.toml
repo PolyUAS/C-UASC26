@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+capnp = "0.25.0"
 ctrlc = "3.5.1"
-flatbuffers = "25.12.19"
 
 mavlink = {version = "0.17.0", features = ["ardupilotmega", "common"]}
 
-zenoh = "1.0"
+zenoh = {version = "1.7.2", features = ["shared-memory"]}
+zenoh-ext = "1.7.2"
 
 [[bin]]
 name = "mavlink_bridge"
