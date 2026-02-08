@@ -14,7 +14,7 @@ mod state_capnp;
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Configuration
     let mavlink_conn_str = std::env::var("MAVLINK_CONN").unwrap_or_else(|_| {
-        "file:/Users/isaacpruett/Documents/PolyUAS/CUASC-2026/mavlink_bridge/test.txt".to_string()
+        "file:/Users/isaacpruett/Documents/PolyUAS/C-UASC26/mavlink_bridge/test.txt".to_string()
     });
 
     // Setup Zenoh
@@ -97,7 +97,7 @@ fn receiver_loop(
                 sleep(Duration::from_millis(100));
             }
             Err(e) => {
-                eprintln!("Message reciever read error: {:?}", e);
+                eprintln!("Message receiver read error: {:?}", e);
             }
         }
     }
