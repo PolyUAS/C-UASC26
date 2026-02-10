@@ -8,6 +8,8 @@
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
 
+    vision-node.url = "./vision";
+
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -50,6 +52,7 @@
           rust_demo = inputs.rust-demo-sub.packages.${system}.default;
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
+          vision = inputs.vision-node.packages.${system}.default;
 
           # Launcher: Spins up all with shared config
           demo = pkgs.writeShellApplication {
@@ -83,6 +86,8 @@
             self'.packages.python_demo
 
             self'.packages.hello_world
+
+            self'.packages.vision
 
 
             pkgs.just

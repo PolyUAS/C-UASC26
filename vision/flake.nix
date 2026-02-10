@@ -65,15 +65,36 @@
             packages = [
               virtualenv
               pkgs.uv
+              pkgs.capnproto
+            ];
+            # OpenCV system dependencies
+            buildInputs = with pkgs; [
+              opencv4
+              gstreamer
+              gst-plugins-base
+              gst-plugins-good
+              libGL
+              libGLU
+              xorg.libX11
+              xorg.libXext
             ];
             env = {
               UV_NO_SYNC = "1";
               UV_PYTHON = pythonSet.python.interpreter;
               UV_PYTHON_DOWNLOADS = "never";
+              LD_LIBRARY_PATH = lib.makeLibraryPath [
+                pkgs.opencv4
+                pkgs.gstreamer
+                pkgs.gst-plugins-base
+                pkgs.libGL
+                pkgs.libGLU
+
+              ];
             };
             shellHook = ''
               unset PYTHONPATH
               export REPO_ROOT=$(git rev-parse --show-toplevel)
+              echo "Vision environment with OpenCV ${pkgs.opencv4.version}"
             '';
           };
         }

@@ -1,41 +1,61 @@
+"""
+Simple webcam capture with OpenCV
+"""
 
-"""
-vision - Python Zenoh Node
-"""
-import os
 import sys
-from time import sleep
 
-import zenoh
+import cv2
 
 
 def main():
-    try:
-        session = zenoh.open(zenoh.Config().from_env())
-    except zenoh.ZError:
-        session = zenoh.open(zenoh.Config())
+    """Open webcam and display feed"""
+    print("Opening webcam...")
 
-    pub = session.declare_publisher("python/helloworld")
+    # Open the default camera (0)
+    cap = cv2.VideoCapture(0)
 
-    sub = session.declare_subscriber("rust/helloworld")
+    # Check if camera opened successfully
+    if not cap.isOpened():
+        print("Error: Could not open webcam")
+        sys.exit(1)
 
-    # Wait for subscribers to be ready
-    sleep(0.5)
+    print("Webcam opened successfully!")
+    print("Press 'q' to quit")
+    print("Press 's' to save a snapshot")
 
-    # Now publish
-    pub.put("Hello, from Python!")
-    print("Python → Published")
-    print("Python → Waiting for Rust message...")
+    snapshot_count = 0
 
-    sample = sub.recv()
+    while True:
+        # Capture frame-by-frame
+        ret, frame = cap.read()
 
-    print("Python ← Received:", sample.payload.to_string())
+        if not ret:
+            print("Error: Can't receive frame. Exiting...")
+            break
 
-    print("Python done!")
-    session.close()
+        # Display the frame
+        cv2.imshow("Webcam Feed", frame)
+
+        # Wait for key press (1ms)
+        key = cv2.waitKey(1) & 0xFF
+
+        # Press 'q' to quit
+        if key == ord("q"):
+            print("Quitting...")
+            break
+
+        # Press 's' to save snapshot
+        elif key == ord("s"):
+            snapshot_count += 1
+            filename = f"snapshot_{snapshot_count}.jpg"
+            cv2.imwrite(filename, frame)
+            print(f"Saved {filename}")
+
+    # Release everything
+    cap.release()
+    cv2.destroyAllWindows()
+    print("Webcam closed")
 
 
 if __name__ == "__main__":
     main()
-
-
