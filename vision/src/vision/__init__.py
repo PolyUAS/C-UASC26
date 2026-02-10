@@ -12,13 +12,14 @@ from typing import Any
 import capnp
 import cv2
 import zenoh
+from numpy.typing import NDArray
 
 # Load schema
-SCHEMA_PATH = Path(__file__) / "detections.capnp"
+SCHEMA_PATH = Path(__file__).parent / "detections.capnp"
 schema: Any = capnp.load(str(SCHEMA_PATH))  # type: ignore
 
 
-def create_detection_message(frame, detections=None) -> bytes:
+def create_detection_message(frame: NDArray, detections=None) -> bytes:
     """
     Create a Cap'n Proto message from detection data
 
@@ -30,14 +31,13 @@ def create_detection_message(frame, detections=None) -> bytes:
         Serialized Cap'n Proto message bytes
     """
     # Create a new DetectionFrame message
-    msg = schema.DetectionFrame.new_message()
+    msg = schema.Frame.new_message()
 
     # Set timestamp (nanoseconds since epoch)
-    msg.timestamp = int(time.monotonic_ns())
 
     # Set frame metadata
-    msg.frameWidth = frame.shape[1]
-    msg.frameHeight = frame.shape[0]
+    msg.width = frame.shape[1]
+    msg.height = frame.shape[0]
 
     # If you have detections, add them
     if detections:
@@ -54,6 +54,7 @@ def create_detection_message(frame, detections=None) -> bytes:
                 msg.detections[i].label = det["label"]
 
     # Serialize to bytes
+    print(msg)
     return msg.to_bytes()
 
 
@@ -97,6 +98,8 @@ def main():
 
             # Display the frame
             cv2.imshow("Webcam Feed", frame)
+
+            print(create_detection_message(frame))
 
             # Wait for key press (1ms)
 

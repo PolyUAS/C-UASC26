@@ -5,9 +5,9 @@ struct Detection {
     ctrY @1 : UInt32;
     width @2 : UInt32;
     height @3 : UInt32;
-
-    type @4: Text;
+    classId @4: Text;
     metadata @5: Text;
+    confidence @6 : Float64;
 }
 
 
