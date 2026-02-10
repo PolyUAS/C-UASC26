@@ -60,7 +60,7 @@ def main():
                 print(f"Saved {filename}")
         except KeyboardInterrupt:
             print("\nexiting vision...")
-            sys.exit(0)
+            break
 
     # Release everything
     cap.release()
