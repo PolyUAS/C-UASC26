@@ -77,6 +77,11 @@
           };
 
           default = self'.packages.demo;
+
+
+          generateStubs = pkgs.writeShellScriptBin "generate-capnp-python-stubs" ''
+              uvx --python 3.14 capnp-stub-gen generate --no-runtime -o stubs/ $1
+          '';
         };
 
         devShells.default = pkgs.mkShell {
@@ -89,6 +94,7 @@
 
             self'.packages.vision
 
+            self'.packages.generateStubs
 
             pkgs.just
             pkgs.uv

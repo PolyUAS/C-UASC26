@@ -2,10 +2,59 @@
 Simple webcam capture with OpenCV
 """
 
+import os
 import sys
+import time
+from pathlib import Path
+from time import sleep
+from typing import Any
 
+import capnp
 import cv2
 import zenoh
+
+# Load schema
+SCHEMA_PATH = Path(__file__).parent / "schemas" / "detections.capnp"
+schema: Any = capnp.load(str(SCHEMA_PATH))  # type: ignore
+
+
+def create_detection_message(frame, detections=None) -> bytes:
+    """
+    Create a Cap'n Proto message from detection data
+
+    Args:
+        frame: OpenCV frame (numpy array)
+        detections: List of detection objects (optional)
+
+    Returns:
+        Serialized Cap'n Proto message bytes
+    """
+    # Create a new DetectionFrame message
+    msg = schema.DetectionFrame.new_message()
+
+    # Set timestamp (nanoseconds since epoch)
+    msg.timestamp = int(time.monotonic_ns())
+
+    # Set frame metadata
+    msg.frameWidth = frame.shape[1]
+    msg.frameHeight = frame.shape[0]
+
+    # If you have detections, add them
+    if detections:
+        msg.init("detections", len(detections))
+
+        for i, det in enumerate(detections):
+            msg.detections[i].x = det["x"]
+            msg.detections[i].y = det["y"]
+            msg.detections[i].width = det["width"]
+            msg.detections[i].height = det["height"]
+            msg.detections[i].confidence = det["confidence"]
+            msg.detections[i].classId = det["class_id"]
+            if "label" in det:
+                msg.detections[i].label = det["label"]
+
+    # Serialize to bytes
+    return msg.to_bytes()
 
 
 def main():
@@ -20,10 +69,16 @@ def main():
     # Open the default camera (0)
     cap = cv2.VideoCapture(0)
 
+    # cap = cv2.VideoCapture("rtsp://192.168.144.25:8554/main.264")
+
+    pub = session.declare_publisher("vision/detections/targets")  # or whatever
+
     # Check if camera opened successfully
     if not cap.isOpened():
         print("Error: Could not open webcam")
         sys.exit(1)
+
+    sleep(0.5)  # wait for everything to open
 
     print("Webcam opened successfully!")
     # print("Press 'q' to quit")
