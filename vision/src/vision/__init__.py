@@ -14,7 +14,7 @@ import cv2
 import zenoh
 
 # Load schema
-SCHEMA_PATH = Path(__file__).parent / "schemas" / "detections.capnp"
+SCHEMA_PATH = Path(__file__) / "detections.capnp"
 schema: Any = capnp.load(str(SCHEMA_PATH))  # type: ignore
 
 
