@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let state_pub = session.declare_publisher("mavlink/state").wait()?;
     sleep(Duration::from_millis(500)); // Wait for subscribers
 
-    // Shutdown signal
+    // Shutdown signal ptr
     let running = Arc::new(AtomicBool::new(true));
 
     // Heartbeat thread
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
-        running.store(false, Ordering::SeqCst);
+        running.store(false, Ordering::Release);
     })
     .expect("Error setting Ctrl-C handler");
 
@@ -103,6 +103,7 @@ fn receiver_loop(
     }
 }
 
+#[inline]
 fn publish_state(
     publisher: &zenoh::pubsub::Publisher,
     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
