@@ -1,6 +1,9 @@
+use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::Connection;
 use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
+
 use mavlink::error::MessageReadError;
+
 use mavlink::{self, MavConnection, MavlinkVersion, Message};
 use std::error::Error;
 use std::sync::Arc;
@@ -9,7 +12,7 @@ use std::thread::{self, sleep};
 use std::time::Duration;
 use zenoh::{self, Wait};
 
-mod state_capnp;
+mod state_generated;
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Configuration
@@ -113,50 +116,36 @@ fn publish_state(
     publisher: &zenoh::pubsub::Publisher,
     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Build Cap'n Proto message
-    let mut message = capnp::message::Builder::new_default();
-    let mut state = message.init_root::<state_capnp::hil_state_quaternion::Builder>();
+    // Build FlatBuffer message
+    let mut builder = FlatBufferBuilder::new();
 
-    // Set timestamp
-    state.set_time_usec(data.time_usec);
+    // Create the struct directly
+    let state = state_generated::mavlink_fb::HilStateQuaternion::new(
+        data.time_usec,
+        &data.attitude_quaternion,
+        data.rollspeed,
+        data.pitchspeed,
+        data.yawspeed,
+        data.lat,
+        data.lon,
+        data.alt,
+        data.vx,
+        data.vy,
+        data.vz,
+        data.ind_airspeed,
+        data.true_airspeed,
+        data.xacc,
+        data.yacc,
+        data.zacc,
+    );
 
-    // Set attitude quaternion (w, x, y, z)
-    let mut quat = state.reborrow().init_attitude_quaternion();
-    quat.set_w(data.attitude_quaternion[0]);
-    quat.set_x(data.attitude_quaternion[1]);
-    quat.set_y(data.attitude_quaternion[2]);
-    quat.set_z(data.attitude_quaternion[3]);
+    builder.push(state);
 
-    // Set angular rates
-    state.set_rollspeed(data.rollspeed);
-    state.set_pitchspeed(data.pitchspeed);
-    state.set_yawspeed(data.yawspeed);
-
-    // Set position
-    state.set_lat(data.lat);
-    state.set_lon(data.lon);
-    state.set_alt(data.alt);
-
-    // Set velocities
-    state.set_vx(data.vx);
-    state.set_vy(data.vy);
-    state.set_vz(data.vz);
-
-    // Set airspeed
-    state.set_ind_airspeed(data.ind_airspeed);
-    state.set_true_airspeed(data.true_airspeed);
-
-    // Set accelerations
-    state.set_xacc(data.xacc);
-    state.set_yacc(data.yacc);
-    state.set_zacc(data.zacc);
-
-    // Serialize to bytes
-    let payload = capnp::serialize::write_message_segments_to_words(&message);
+    // Get the serialized bytes
+    let payload = builder.finished_data();
 
     // Publish
     publisher.put(payload).wait()?;
-
     Ok(())
 }
 

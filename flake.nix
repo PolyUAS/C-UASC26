@@ -90,9 +90,7 @@
 
             pkgs.just
             pkgs.uv
-            pkgs.capnproto
-            pkgs.capnproto-rust
-            pkgs.python313Packages.pycapnp
+            pkgs.flatbuffers
           ];
           env.ZENOH_CONFIG = sharedConfig;
           shellHook = ''
