@@ -19,7 +19,9 @@ SCHEMA_PATH = Path(__file__).parent / "detections.capnp"
 schema: Any = capnp.load(str(SCHEMA_PATH))  # type: ignore
 
 
-def create_detection_message(frame: NDArray, detections=None) -> bytes:
+def create_detection_message(
+    frame: NDArray, detections: list[dict] | None = None
+) -> bytes:
     """
     Create a Cap'n Proto message from detection data
 
