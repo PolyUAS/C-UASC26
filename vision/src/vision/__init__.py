@@ -122,6 +122,7 @@ def main():
 
     # Release everything
     cap.release()
+    session.close()
     cv2.destroyAllWindows()
     print("Webcam closed")
 
