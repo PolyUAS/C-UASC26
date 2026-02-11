@@ -98,8 +98,7 @@
 
             pkgs.just
             pkgs.uv
-            pkgs.capnproto
-            pkgs.capnproto-rust
+            pkgs.flatbuffers
 
           ];
           env.ZENOH_CONFIG = sharedConfig;

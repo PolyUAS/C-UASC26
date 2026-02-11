@@ -9,55 +9,72 @@ from pathlib import Path
 from time import sleep
 from typing import Any
 
-import capnp
 import cv2
+import flatbuffers
 import zenoh
+from numpy import uint32
 from numpy.typing import NDArray
 
-# Load schema
-SCHEMA_PATH = Path(__file__).parent / "detections.capnp"
-schema: Any = capnp.load(str(SCHEMA_PATH))  # type: ignore
+import vision.Detection as Detection
+import vision.Frame as Frame
 
 
 def create_detection_message(
     frame: NDArray, detections: list[dict] | None = None
 ) -> bytes:
     """
-    Create a Cap'n Proto message from detection data
+    Create a FlatBuffers message from detection data
 
     Args:
         frame: OpenCV frame (numpy array)
-        detections: List of detection objects (optional)
+        detections: List of detection dicts with keys: ctr_x, ctr_y, width, height, class_id, confidence, metadata
 
     Returns:
-        Serialized Cap'n Proto message bytes
+        Serialized FlatBuffers message bytes
     """
-    # Create a new DetectionFrame message
-    msg = schema.Frame.new_message()
+    builder = flatbuffers.Builder(1024)
 
-    # Set timestamp (nanoseconds since epoch)
-
-    # Set frame metadata
-    msg.width = frame.shape[1]
-    msg.height = frame.shape[0]
-
-    # If you have detections, add them
+    # Build detection objects if provided
+    detection_offsets = []
     if detections:
-        msg.init("detections", len(detections))
+        for det in detections:
+            # Create strings first (they need to be created before the table)
+            class_id_offset = builder.CreateString(det.get("class_id", "unknown"))
+            metadata_offset = builder.CreateString(det.get("metadata", ""))
 
-        for i, det in enumerate(detections):
-            msg.detections[i].x = det["x"]
-            msg.detections[i].y = det["y"]
-            msg.detections[i].width = det["width"]
-            msg.detections[i].height = det["height"]
-            msg.detections[i].confidence = det["confidence"]
-            msg.detections[i].classId = det["class_id"]
-            if "label" in det:
-                msg.detections[i].label = det["label"]
+            # Create Detection
+            Detection.Start(builder)
+            Detection.AddCtrX(builder, det.get("ctr_x", 0))
+            Detection.AddCtrY(builder, det.get("ctr_y", 0))
+            Detection.AddWidth(builder, det.get("width", 0))
+            Detection.AddHeight(builder, det.get("height", 0))
+            Detection.AddClassId(builder, class_id_offset)
+            Detection.AddMetadata(builder, metadata_offset)
+            Detection.AddConfidence(builder, det.get("confidence", 0.0))
+            detection_offsets.append(Detection.End(builder))
 
-    # Serialize to bytes
-    print(msg)
-    return msg.to_bytes()
+    # Create vector of detections
+    Frame.StartDetectionsVector(builder, len(detection_offsets))
+    for det_offset in reversed(detection_offsets):  # FlatBuffers builds in reverse
+        builder.PrependUOffsetTRelative(det_offset)
+    detections_vector = builder.EndVector()
+
+    # Create frame metadata string
+    frame_metadata_offset = builder.CreateString("")
+
+    # Create Frame
+    Frame.Start(builder)
+    Frame.AddWidth(builder, frame.shape[1])
+    Frame.AddHeight(builder, frame.shape[0])
+    Frame.AddDetections(builder, detections_vector)
+    Frame.AddMetadata(builder, frame_metadata_offset)
+    frame_offset = Frame.End(builder)
+
+    # Finish the buffer
+    builder.Finish(frame_offset)
+
+    # Return serialized bytes
+    return bytes(builder.Output())
 
 
 def main():
