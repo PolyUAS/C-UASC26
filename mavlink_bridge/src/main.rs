@@ -60,6 +60,11 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     heartbeat_handle.join().unwrap();
     receiver_handle.join().unwrap();
 
+    session
+        .close()
+        .wait()
+        .expect("Failed to close mavlink's zenoh session:");
+
     Ok(())
 }
 
