@@ -74,7 +74,7 @@ def main():
 
     # cap = cv2.VideoCapture("rtsp://192.168.144.25:8554/main.264")
 
-    pub = session.declare_publisher("vision/detections/targets")  # or whatever
+    pub = session.declare_publisher("vision/detections")  # or whatever
 
     # Check if camera opened successfully
     if not cap.isOpened():
