@@ -1,9 +1,25 @@
 {
   "nodes": {
+    "control": {
+      "inputs": {
+        "naersk": "naersk",
+        "nixpkgs": "nixpkgs_2",
+        "utils": "utils"
+      },
+      "locked": {
+        "path": "./control",
+        "type": "path"
+      },
+      "original": {
+        "path": "./control",
+        "type": "path"
+      },
+      "parent": []
+    },
     "fenix": {
       "inputs": {
         "nixpkgs": [
-          "mavlink_bridge",
+          "control",
           "naersk",
           "nixpkgs"
         ],
@@ -64,33 +80,17 @@
         "type": "github"
       }
     },
-    "mavlink_bridge": {
-      "inputs": {
-        "naersk": "naersk",
-        "nixpkgs": "nixpkgs_2",
-        "utils": "utils"
-      },
-      "locked": {
-        "path": "./mavlink_bridge",
-        "type": "path"
-      },
-      "original": {
-        "path": "./mavlink_bridge",
-        "type": "path"
-      },
-      "parent": []
-    },
     "naersk": {
       "inputs": {
         "fenix": "fenix",
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1768908532,
-        "narHash": "sha256-HIdLXEFaUVE8FiaCPJbCfBMsnF+mVtDub8Jwj2BD+mk=",
+        "lastModified": 1769799857,
+        "narHash": "sha256-88IFXZ7Sa1vxbz5pty0Io5qEaMQMMUPMonLa3Ls/ss4=",
         "owner": "nix-community",
         "repo": "naersk",
-        "rev": "8d97452673640eb7fabe428e8b6a425bc355008b",
+        "rev": "9d4ed44d8b8cecdceb1d6fd76e74123d90ae6339",
         "type": "github"
       },
       "original": {
@@ -153,11 +153,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1769330179,
-        "narHash": "sha256-yxgb4AmkVHY5OOBrC79Vv6EVd4QZEotqv+6jcvA212M=",
+        "lastModified": 1770843696,
+        "narHash": "sha256-LovWTGDwXhkfCOmbgLVA10bvsi/P8eDDpRudgk68HA8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "48698d12cc10555a4f3e3222d9c669b884a49dfe",
+        "rev": "2343bbb58f99267223bc2aac4fc9ea301a155a16",
         "type": "github"
       },
       "original": {
@@ -366,8 +366,8 @@
     },
     "root": {
       "inputs": {
+        "control": "control",
         "flake-parts": "flake-parts",
-        "mavlink_bridge": "mavlink_bridge",
         "nixpkgs": "nixpkgs_3",
         "python-demo-sub": "python-demo-sub",
         "rust-demo-sub": "rust-demo-sub",

@@ -7,7 +7,7 @@
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
-    mavlink_bridge.url = "./mavlink_bridge";
+    control.url = "./control";
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -51,7 +51,7 @@
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
 
-          mavlink = inputs.mavlink_bridge.packages.${system}.default;
+          control = inputs.control.packages.${system}.default;
 
           # Launcher: Spins up all with shared config
           demo = pkgs.writeShellApplication {
@@ -86,7 +86,7 @@
 
             self'.packages.hello_world
 
-            self'.packages.mavlink
+            self'.packages.control
 
             pkgs.just
             pkgs.uv
