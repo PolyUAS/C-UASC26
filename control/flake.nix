@@ -1,5 +1,5 @@
 {
-  description = "mavlink_bridge — Rust Zenoh Node";
+  description = "control — Rust Zenoh Node";
   inputs = {
     naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -14,12 +14,7 @@
       {
         packages.default = naersk-lib.buildPackage {
           src = ./.;
-          pname = "mavlink_bridge";
-
-          nativeBuildInputs = [
-            pkgs.git
-          ];
-
+          pname = "control";
           # Optional: customize if needed
           # doCheck = true;
           # release = false;  # already default in naersk

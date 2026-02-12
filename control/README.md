@@ -1,4 +1,4 @@
-# mavlink_bridge
+# control
 
 A Zenoh Rust node.
 
