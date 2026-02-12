@@ -17,7 +17,7 @@ mod state_generated;
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Configuration
     let mavlink_conn_str = std::env::var("MAVLINK_CONN").unwrap_or_else(|_| {
-        "file:/Users/isaacpruett/Documents/PolyUAS/C-UASC26/mavlink_bridge/test.txt".to_string()
+        "file:/Users/isaacpruett/Documents/PolyUAS/C-UASC26/control/test.txt".to_string()
     });
 
     // Setup Zenoh

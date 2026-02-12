@@ -15,12 +15,14 @@
         packages.default = naersk-lib.buildPackage {
           src = ./.;
           pname = "control";
+          nativeBuildInputs = [ pkgs.git ];
           # Optional: customize if needed
           # doCheck = true;
           # release = false;  # already default in naersk
         };
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            git
             cargo
             rustc
             rustfmt
