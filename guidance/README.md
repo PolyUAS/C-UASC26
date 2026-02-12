@@ -1,4 +1,4 @@
-# control
+# guidance
 
 A Zenoh Python node.
 

@@ -1,5 +1,5 @@
 {
-  description = "control — Python Zenoh Node";
+  description = "guidance — Python Zenoh Node";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     pyproject-nix = {
@@ -58,7 +58,7 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           pythonSet = pythonSets.${system}.overrideScope editableOverlay;
-          virtualenv = pythonSet.mkVirtualEnv "control-dev-env" workspace.deps.all;
+          virtualenv = pythonSet.mkVirtualEnv "guidance-dev-env" workspace.deps.all;
         in
         {
           default = pkgs.mkShell {
@@ -79,7 +79,7 @@
         }
       );
       packages = forAllSystems (system: {
-        default = pythonSets.${system}.mkVirtualEnv "control-env" workspace.deps.default;
+        default = pythonSets.${system}.mkVirtualEnv "guidance-env" workspace.deps.default;
       });
     };
 }

@@ -1,6 +1,6 @@
 
 """
-control - Python Zenoh Node
+guidance - Python Zenoh Node
 """
 import os
 import sys

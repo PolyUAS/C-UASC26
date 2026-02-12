@@ -1,4 +1,4 @@
-# localization
+# navigation
 
 A Zenoh Rust node.
 

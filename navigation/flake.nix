@@ -1,5 +1,5 @@
 {
-  description = "localization — Rust Zenoh Node";
+  description = "navigation — Rust Zenoh Node";
   inputs = {
     naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -14,7 +14,7 @@
       {
         packages.default = naersk-lib.buildPackage {
           src = ./.;
-          pname = "localization";
+          pname = "navigation";
           # Optional: customize if needed
           # doCheck = true;
           # release = false;  # already default in naersk

@@ -1,7 +1,7 @@
 [project]
-name = "control"
+name = "guidance"
 version = "0.1.0"
-description = "control - Python Zenoh Node"
+description = "guidance - Python Zenoh Node"
 requires-python = ">=3.12"
 dependencies = [
  "eclipse-zenoh>=1.7.1",
@@ -13,7 +13,7 @@ dependencies = [
 # we look in the package hello_world and find the function main (inside __init__.py)
 # the function must be visible (i.e. imported or defined) in __init__.py
 [project.scripts]
-control = "control:main"
+guidance = "guidance:main"
 
 [build-system]
 requires = ["uv_build>=0.9.0,<0.10.0"]
