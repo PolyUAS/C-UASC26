@@ -18,58 +18,52 @@ pub mod mavlink_fb {
   extern crate flatbuffers;
   use self::flatbuffers::{EndianScalar, Follow};
 
-// struct HilStateQuaternion, aligned to 8
+// struct StateVector, aligned to 8
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq)]
-pub struct HilStateQuaternion(pub [u8; 64]);
-impl Default for HilStateQuaternion { 
+pub struct StateVector(pub [u8; 64]);
+impl Default for StateVector { 
   fn default() -> Self { 
     Self([0; 64])
   }
 }
-impl core::fmt::Debug for HilStateQuaternion {
+impl core::fmt::Debug for StateVector {
   fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-    f.debug_struct("HilStateQuaternion")
+    f.debug_struct("StateVector")
       .field("time_usec", &self.time_usec())
-      .field("attitude_quaternion", &self.attitude_quaternion())
+      .field("quaternion", &self.quaternion())
       .field("rollspeed", &self.rollspeed())
       .field("pitchspeed", &self.pitchspeed())
       .field("yawspeed", &self.yawspeed())
-      .field("lat", &self.lat())
-      .field("lon", &self.lon())
-      .field("alt", &self.alt())
-      .field("vx", &self.vx())
-      .field("vy", &self.vy())
-      .field("vz", &self.vz())
+      .field("pos", &self.pos())
+      .field("vel", &self.vel())
+      .field("acc", &self.acc())
       .field("ind_airspeed", &self.ind_airspeed())
       .field("true_airspeed", &self.true_airspeed())
-      .field("xacc", &self.xacc())
-      .field("yacc", &self.yacc())
-      .field("zacc", &self.zacc())
       .finish()
   }
 }
 
-impl flatbuffers::SimpleToVerifyInSlice for HilStateQuaternion {}
-impl<'a> flatbuffers::Follow<'a> for HilStateQuaternion {
-  type Inner = &'a HilStateQuaternion;
+impl flatbuffers::SimpleToVerifyInSlice for StateVector {}
+impl<'a> flatbuffers::Follow<'a> for StateVector {
+  type Inner = &'a StateVector;
   #[inline]
   unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    unsafe { <&'a HilStateQuaternion>::follow(buf, loc) }
+    unsafe { <&'a StateVector>::follow(buf, loc) }
   }
 }
-impl<'a> flatbuffers::Follow<'a> for &'a HilStateQuaternion {
-  type Inner = &'a HilStateQuaternion;
+impl<'a> flatbuffers::Follow<'a> for &'a StateVector {
+  type Inner = &'a StateVector;
   #[inline]
   unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    unsafe { flatbuffers::follow_cast_ref::<HilStateQuaternion>(buf, loc) }
+    unsafe { flatbuffers::follow_cast_ref::<StateVector>(buf, loc) }
   }
 }
-impl<'b> flatbuffers::Push for HilStateQuaternion {
-    type Output = HilStateQuaternion;
+impl<'b> flatbuffers::Push for StateVector {
+    type Output = StateVector;
     #[inline]
     unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        let src = unsafe { ::core::slice::from_raw_parts(self as *const HilStateQuaternion as *const u8, <Self as flatbuffers::Push>::size()) };
+        let src = unsafe { ::core::slice::from_raw_parts(self as *const StateVector as *const u8, <Self as flatbuffers::Push>::size()) };
         dst.copy_from_slice(src);
     }
     #[inline]
@@ -78,7 +72,7 @@ impl<'b> flatbuffers::Push for HilStateQuaternion {
     }
 }
 
-impl<'a> flatbuffers::Verifiable for HilStateQuaternion {
+impl<'a> flatbuffers::Verifiable for StateVector {
   #[inline]
   fn run_verifier(
     v: &mut flatbuffers::Verifier, pos: usize
@@ -88,43 +82,31 @@ impl<'a> flatbuffers::Verifiable for HilStateQuaternion {
   }
 }
 
-impl<'a> HilStateQuaternion {
+impl<'a> StateVector {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     time_usec: u64,
-    attitude_quaternion: &[f32; 4],
+    quaternion: &[f32; 4],
     rollspeed: f32,
     pitchspeed: f32,
     yawspeed: f32,
-    lat: i32,
-    lon: i32,
-    alt: i32,
-    vx: i16,
-    vy: i16,
-    vz: i16,
+    pos: &[i32; 3],
+    vel: &[i16; 3],
+    acc: &[i16; 3],
     ind_airspeed: u16,
     true_airspeed: u16,
-    xacc: i16,
-    yacc: i16,
-    zacc: i16,
   ) -> Self {
     let mut s = Self([0; 64]);
     s.set_time_usec(time_usec);
-    s.set_attitude_quaternion(attitude_quaternion);
+    s.set_quaternion(quaternion);
     s.set_rollspeed(rollspeed);
     s.set_pitchspeed(pitchspeed);
     s.set_yawspeed(yawspeed);
-    s.set_lat(lat);
-    s.set_lon(lon);
-    s.set_alt(alt);
-    s.set_vx(vx);
-    s.set_vy(vy);
-    s.set_vz(vz);
+    s.set_pos(pos);
+    s.set_vel(vel);
+    s.set_acc(acc);
     s.set_ind_airspeed(ind_airspeed);
     s.set_true_airspeed(true_airspeed);
-    s.set_xacc(xacc);
-    s.set_yacc(yacc);
-    s.set_zacc(zacc);
     s
   }
 
@@ -157,14 +139,14 @@ impl<'a> HilStateQuaternion {
     }
   }
 
-  pub fn attitude_quaternion(&'a self) -> flatbuffers::Array<'a, f32, 4> {
+  pub fn quaternion(&'a self) -> flatbuffers::Array<'a, f32, 4> {
     // Safety:
     // Created from a valid Table for this object
     // Which contains a valid array in this slot
     unsafe { flatbuffers::Array::follow(&self.0, 8) }
   }
 
-  pub fn set_attitude_quaternion(&mut self, items: &[f32; 4]) {
+  pub fn set_quaternion(&mut self, items: &[f32; 4]) {
     // Safety:
     // Created from a valid Table for this object
     // Which contains a valid array in this slot
@@ -258,178 +240,46 @@ impl<'a> HilStateQuaternion {
     }
   }
 
-  pub fn lat(&self) -> i32 {
-    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+  pub fn pos(&'a self) -> flatbuffers::Array<'a, i32, 3> {
     // Safety:
     // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    EndianScalar::from_little_endian(unsafe {
-      core::ptr::copy_nonoverlapping(
-        self.0[36..].as_ptr(),
-        mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
-      );
-      mem.assume_init()
-    })
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::Array::follow(&self.0, 36) }
   }
 
-  pub fn set_lat(&mut self, x: i32) {
-    let x_le = x.to_little_endian();
+  pub fn set_pos(&mut self, items: &[i32; 3]) {
     // Safety:
     // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    unsafe {
-      core::ptr::copy_nonoverlapping(
-        &x_le as *const _ as *const u8,
-        self.0[36..].as_mut_ptr(),
-        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
-      );
-    }
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::emplace_scalar_array(&mut self.0, 36, items) };
   }
 
-  pub fn lon(&self) -> i32 {
-    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+  pub fn vel(&'a self) -> flatbuffers::Array<'a, i16, 3> {
     // Safety:
     // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    EndianScalar::from_little_endian(unsafe {
-      core::ptr::copy_nonoverlapping(
-        self.0[40..].as_ptr(),
-        mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
-      );
-      mem.assume_init()
-    })
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::Array::follow(&self.0, 48) }
   }
 
-  pub fn set_lon(&mut self, x: i32) {
-    let x_le = x.to_little_endian();
+  pub fn set_vel(&mut self, items: &[i16; 3]) {
     // Safety:
     // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    unsafe {
-      core::ptr::copy_nonoverlapping(
-        &x_le as *const _ as *const u8,
-        self.0[40..].as_mut_ptr(),
-        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
-      );
-    }
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::emplace_scalar_array(&mut self.0, 48, items) };
   }
 
-  pub fn alt(&self) -> i32 {
-    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+  pub fn acc(&'a self) -> flatbuffers::Array<'a, i16, 3> {
     // Safety:
     // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    EndianScalar::from_little_endian(unsafe {
-      core::ptr::copy_nonoverlapping(
-        self.0[44..].as_ptr(),
-        mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
-      );
-      mem.assume_init()
-    })
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::Array::follow(&self.0, 54) }
   }
 
-  pub fn set_alt(&mut self, x: i32) {
-    let x_le = x.to_little_endian();
+  pub fn set_acc(&mut self, items: &[i16; 3]) {
     // Safety:
     // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    unsafe {
-      core::ptr::copy_nonoverlapping(
-        &x_le as *const _ as *const u8,
-        self.0[44..].as_mut_ptr(),
-        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
-      );
-    }
-  }
-
-  pub fn vx(&self) -> i16 {
-    let mut mem = core::mem::MaybeUninit::<<i16 as EndianScalar>::Scalar>::uninit();
-    // Safety:
-    // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    EndianScalar::from_little_endian(unsafe {
-      core::ptr::copy_nonoverlapping(
-        self.0[48..].as_ptr(),
-        mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
-      );
-      mem.assume_init()
-    })
-  }
-
-  pub fn set_vx(&mut self, x: i16) {
-    let x_le = x.to_little_endian();
-    // Safety:
-    // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    unsafe {
-      core::ptr::copy_nonoverlapping(
-        &x_le as *const _ as *const u8,
-        self.0[48..].as_mut_ptr(),
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
-      );
-    }
-  }
-
-  pub fn vy(&self) -> i16 {
-    let mut mem = core::mem::MaybeUninit::<<i16 as EndianScalar>::Scalar>::uninit();
-    // Safety:
-    // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    EndianScalar::from_little_endian(unsafe {
-      core::ptr::copy_nonoverlapping(
-        self.0[50..].as_ptr(),
-        mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
-      );
-      mem.assume_init()
-    })
-  }
-
-  pub fn set_vy(&mut self, x: i16) {
-    let x_le = x.to_little_endian();
-    // Safety:
-    // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    unsafe {
-      core::ptr::copy_nonoverlapping(
-        &x_le as *const _ as *const u8,
-        self.0[50..].as_mut_ptr(),
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
-      );
-    }
-  }
-
-  pub fn vz(&self) -> i16 {
-    let mut mem = core::mem::MaybeUninit::<<i16 as EndianScalar>::Scalar>::uninit();
-    // Safety:
-    // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    EndianScalar::from_little_endian(unsafe {
-      core::ptr::copy_nonoverlapping(
-        self.0[52..].as_ptr(),
-        mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
-      );
-      mem.assume_init()
-    })
-  }
-
-  pub fn set_vz(&mut self, x: i16) {
-    let x_le = x.to_little_endian();
-    // Safety:
-    // Created from a valid Table for this object
-    // Which contains a valid value in this slot
-    unsafe {
-      core::ptr::copy_nonoverlapping(
-        &x_le as *const _ as *const u8,
-        self.0[52..].as_mut_ptr(),
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
-      );
-    }
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::emplace_scalar_array(&mut self.0, 54, items) };
   }
 
   pub fn ind_airspeed(&self) -> u16 {
@@ -439,7 +289,7 @@ impl<'a> HilStateQuaternion {
     // Which contains a valid value in this slot
     EndianScalar::from_little_endian(unsafe {
       core::ptr::copy_nonoverlapping(
-        self.0[54..].as_ptr(),
+        self.0[60..].as_ptr(),
         mem.as_mut_ptr() as *mut u8,
         core::mem::size_of::<<u16 as EndianScalar>::Scalar>(),
       );
@@ -455,7 +305,7 @@ impl<'a> HilStateQuaternion {
     unsafe {
       core::ptr::copy_nonoverlapping(
         &x_le as *const _ as *const u8,
-        self.0[54..].as_mut_ptr(),
+        self.0[60..].as_mut_ptr(),
         core::mem::size_of::<<u16 as EndianScalar>::Scalar>(),
       );
     }
@@ -468,7 +318,7 @@ impl<'a> HilStateQuaternion {
     // Which contains a valid value in this slot
     EndianScalar::from_little_endian(unsafe {
       core::ptr::copy_nonoverlapping(
-        self.0[56..].as_ptr(),
+        self.0[62..].as_ptr(),
         mem.as_mut_ptr() as *mut u8,
         core::mem::size_of::<<u16 as EndianScalar>::Scalar>(),
       );
@@ -484,28 +334,107 @@ impl<'a> HilStateQuaternion {
     unsafe {
       core::ptr::copy_nonoverlapping(
         &x_le as *const _ as *const u8,
-        self.0[56..].as_mut_ptr(),
+        self.0[62..].as_mut_ptr(),
         core::mem::size_of::<<u16 as EndianScalar>::Scalar>(),
       );
     }
   }
 
-  pub fn xacc(&self) -> i16 {
-    let mut mem = core::mem::MaybeUninit::<<i16 as EndianScalar>::Scalar>::uninit();
+}
+
+// struct Attitude, aligned to 4
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq)]
+pub struct Attitude(pub [u8; 28]);
+impl Default for Attitude { 
+  fn default() -> Self { 
+    Self([0; 28])
+  }
+}
+impl core::fmt::Debug for Attitude {
+  fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    f.debug_struct("Attitude")
+      .field("time_boot_ms", &self.time_boot_ms())
+      .field("roll", &self.roll())
+      .field("pitch", &self.pitch())
+      .field("yaw", &self.yaw())
+      .field("angular_velos", &self.angular_velos())
+      .finish()
+  }
+}
+
+impl flatbuffers::SimpleToVerifyInSlice for Attitude {}
+impl<'a> flatbuffers::Follow<'a> for Attitude {
+  type Inner = &'a Attitude;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    unsafe { <&'a Attitude>::follow(buf, loc) }
+  }
+}
+impl<'a> flatbuffers::Follow<'a> for &'a Attitude {
+  type Inner = &'a Attitude;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    unsafe { flatbuffers::follow_cast_ref::<Attitude>(buf, loc) }
+  }
+}
+impl<'b> flatbuffers::Push for Attitude {
+    type Output = Attitude;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        let src = unsafe { ::core::slice::from_raw_parts(self as *const Attitude as *const u8, <Self as flatbuffers::Push>::size()) };
+        dst.copy_from_slice(src);
+    }
+    #[inline]
+    fn alignment() -> flatbuffers::PushAlignment {
+        flatbuffers::PushAlignment::new(4)
+    }
+}
+
+impl<'a> flatbuffers::Verifiable for Attitude {
+  #[inline]
+  fn run_verifier(
+    v: &mut flatbuffers::Verifier, pos: usize
+  ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+    use self::flatbuffers::Verifiable;
+    v.in_buffer::<Self>(pos)
+  }
+}
+
+impl<'a> Attitude {
+  #[allow(clippy::too_many_arguments)]
+  pub fn new(
+    time_boot_ms: u32,
+    roll: f32,
+    pitch: f32,
+    yaw: f32,
+    angular_velos: &[f32; 3],
+  ) -> Self {
+    let mut s = Self([0; 28]);
+    s.set_time_boot_ms(time_boot_ms);
+    s.set_roll(roll);
+    s.set_pitch(pitch);
+    s.set_yaw(yaw);
+    s.set_angular_velos(angular_velos);
+    s
+  }
+
+  pub fn time_boot_ms(&self) -> u32 {
+    let mut mem = core::mem::MaybeUninit::<<u32 as EndianScalar>::Scalar>::uninit();
     // Safety:
     // Created from a valid Table for this object
     // Which contains a valid value in this slot
     EndianScalar::from_little_endian(unsafe {
       core::ptr::copy_nonoverlapping(
-        self.0[58..].as_ptr(),
+        self.0[0..].as_ptr(),
         mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
+        core::mem::size_of::<<u32 as EndianScalar>::Scalar>(),
       );
       mem.assume_init()
     })
   }
 
-  pub fn set_xacc(&mut self, x: i16) {
+  pub fn set_time_boot_ms(&mut self, x: u32) {
     let x_le = x.to_little_endian();
     // Safety:
     // Created from a valid Table for this object
@@ -513,28 +442,28 @@ impl<'a> HilStateQuaternion {
     unsafe {
       core::ptr::copy_nonoverlapping(
         &x_le as *const _ as *const u8,
-        self.0[58..].as_mut_ptr(),
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
+        self.0[0..].as_mut_ptr(),
+        core::mem::size_of::<<u32 as EndianScalar>::Scalar>(),
       );
     }
   }
 
-  pub fn yacc(&self) -> i16 {
-    let mut mem = core::mem::MaybeUninit::<<i16 as EndianScalar>::Scalar>::uninit();
+  pub fn roll(&self) -> f32 {
+    let mut mem = core::mem::MaybeUninit::<<f32 as EndianScalar>::Scalar>::uninit();
     // Safety:
     // Created from a valid Table for this object
     // Which contains a valid value in this slot
     EndianScalar::from_little_endian(unsafe {
       core::ptr::copy_nonoverlapping(
-        self.0[60..].as_ptr(),
+        self.0[4..].as_ptr(),
         mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
+        core::mem::size_of::<<f32 as EndianScalar>::Scalar>(),
       );
       mem.assume_init()
     })
   }
 
-  pub fn set_yacc(&mut self, x: i16) {
+  pub fn set_roll(&mut self, x: f32) {
     let x_le = x.to_little_endian();
     // Safety:
     // Created from a valid Table for this object
@@ -542,28 +471,28 @@ impl<'a> HilStateQuaternion {
     unsafe {
       core::ptr::copy_nonoverlapping(
         &x_le as *const _ as *const u8,
-        self.0[60..].as_mut_ptr(),
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
+        self.0[4..].as_mut_ptr(),
+        core::mem::size_of::<<f32 as EndianScalar>::Scalar>(),
       );
     }
   }
 
-  pub fn zacc(&self) -> i16 {
-    let mut mem = core::mem::MaybeUninit::<<i16 as EndianScalar>::Scalar>::uninit();
+  pub fn pitch(&self) -> f32 {
+    let mut mem = core::mem::MaybeUninit::<<f32 as EndianScalar>::Scalar>::uninit();
     // Safety:
     // Created from a valid Table for this object
     // Which contains a valid value in this slot
     EndianScalar::from_little_endian(unsafe {
       core::ptr::copy_nonoverlapping(
-        self.0[62..].as_ptr(),
+        self.0[8..].as_ptr(),
         mem.as_mut_ptr() as *mut u8,
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
+        core::mem::size_of::<<f32 as EndianScalar>::Scalar>(),
       );
       mem.assume_init()
     })
   }
 
-  pub fn set_zacc(&mut self, x: i16) {
+  pub fn set_pitch(&mut self, x: f32) {
     let x_le = x.to_little_endian();
     // Safety:
     // Created from a valid Table for this object
@@ -571,8 +500,324 @@ impl<'a> HilStateQuaternion {
     unsafe {
       core::ptr::copy_nonoverlapping(
         &x_le as *const _ as *const u8,
-        self.0[62..].as_mut_ptr(),
-        core::mem::size_of::<<i16 as EndianScalar>::Scalar>(),
+        self.0[8..].as_mut_ptr(),
+        core::mem::size_of::<<f32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn yaw(&self) -> f32 {
+    let mut mem = core::mem::MaybeUninit::<<f32 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[12..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<f32 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_yaw(&mut self, x: f32) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[12..].as_mut_ptr(),
+        core::mem::size_of::<<f32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn angular_velos(&'a self) -> flatbuffers::Array<'a, f32, 3> {
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::Array::follow(&self.0, 16) }
+  }
+
+  pub fn set_angular_velos(&mut self, items: &[f32; 3]) {
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::emplace_scalar_array(&mut self.0, 16, items) };
+  }
+
+}
+
+// struct GlobalPosition, aligned to 4
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq)]
+pub struct GlobalPosition(pub [u8; 28]);
+impl Default for GlobalPosition { 
+  fn default() -> Self { 
+    Self([0; 28])
+  }
+}
+impl core::fmt::Debug for GlobalPosition {
+  fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    f.debug_struct("GlobalPosition")
+      .field("time_boot_ms", &self.time_boot_ms())
+      .field("lat", &self.lat())
+      .field("lon", &self.lon())
+      .field("alt", &self.alt())
+      .field("above_home_alt", &self.above_home_alt())
+      .field("velocites", &self.velocites())
+      .field("heading_yaw", &self.heading_yaw())
+      .finish()
+  }
+}
+
+impl flatbuffers::SimpleToVerifyInSlice for GlobalPosition {}
+impl<'a> flatbuffers::Follow<'a> for GlobalPosition {
+  type Inner = &'a GlobalPosition;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    unsafe { <&'a GlobalPosition>::follow(buf, loc) }
+  }
+}
+impl<'a> flatbuffers::Follow<'a> for &'a GlobalPosition {
+  type Inner = &'a GlobalPosition;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    unsafe { flatbuffers::follow_cast_ref::<GlobalPosition>(buf, loc) }
+  }
+}
+impl<'b> flatbuffers::Push for GlobalPosition {
+    type Output = GlobalPosition;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        let src = unsafe { ::core::slice::from_raw_parts(self as *const GlobalPosition as *const u8, <Self as flatbuffers::Push>::size()) };
+        dst.copy_from_slice(src);
+    }
+    #[inline]
+    fn alignment() -> flatbuffers::PushAlignment {
+        flatbuffers::PushAlignment::new(4)
+    }
+}
+
+impl<'a> flatbuffers::Verifiable for GlobalPosition {
+  #[inline]
+  fn run_verifier(
+    v: &mut flatbuffers::Verifier, pos: usize
+  ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+    use self::flatbuffers::Verifiable;
+    v.in_buffer::<Self>(pos)
+  }
+}
+
+impl<'a> GlobalPosition {
+  #[allow(clippy::too_many_arguments)]
+  pub fn new(
+    time_boot_ms: u32,
+    lat: i32,
+    lon: i32,
+    alt: i32,
+    above_home_alt: i32,
+    velocites: &[i16; 3],
+    heading_yaw: u16,
+  ) -> Self {
+    let mut s = Self([0; 28]);
+    s.set_time_boot_ms(time_boot_ms);
+    s.set_lat(lat);
+    s.set_lon(lon);
+    s.set_alt(alt);
+    s.set_above_home_alt(above_home_alt);
+    s.set_velocites(velocites);
+    s.set_heading_yaw(heading_yaw);
+    s
+  }
+
+  pub fn time_boot_ms(&self) -> u32 {
+    let mut mem = core::mem::MaybeUninit::<<u32 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[0..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<u32 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_time_boot_ms(&mut self, x: u32) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[0..].as_mut_ptr(),
+        core::mem::size_of::<<u32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn lat(&self) -> i32 {
+    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[4..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_lat(&mut self, x: i32) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[4..].as_mut_ptr(),
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn lon(&self) -> i32 {
+    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[8..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_lon(&mut self, x: i32) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[8..].as_mut_ptr(),
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn alt(&self) -> i32 {
+    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[12..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_alt(&mut self, x: i32) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[12..].as_mut_ptr(),
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn above_home_alt(&self) -> i32 {
+    let mut mem = core::mem::MaybeUninit::<<i32 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[16..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_above_home_alt(&mut self, x: i32) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[16..].as_mut_ptr(),
+        core::mem::size_of::<<i32 as EndianScalar>::Scalar>(),
+      );
+    }
+  }
+
+  pub fn velocites(&'a self) -> flatbuffers::Array<'a, i16, 3> {
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::Array::follow(&self.0, 20) }
+  }
+
+  pub fn set_velocites(&mut self, items: &[i16; 3]) {
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid array in this slot
+    unsafe { flatbuffers::emplace_scalar_array(&mut self.0, 20, items) };
+  }
+
+  pub fn heading_yaw(&self) -> u16 {
+    let mut mem = core::mem::MaybeUninit::<<u16 as EndianScalar>::Scalar>::uninit();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    EndianScalar::from_little_endian(unsafe {
+      core::ptr::copy_nonoverlapping(
+        self.0[26..].as_ptr(),
+        mem.as_mut_ptr() as *mut u8,
+        core::mem::size_of::<<u16 as EndianScalar>::Scalar>(),
+      );
+      mem.assume_init()
+    })
+  }
+
+  pub fn set_heading_yaw(&mut self, x: u16) {
+    let x_le = x.to_little_endian();
+    // Safety:
+    // Created from a valid Table for this object
+    // Which contains a valid value in this slot
+    unsafe {
+      core::ptr::copy_nonoverlapping(
+        &x_le as *const _ as *const u8,
+        self.0[26..].as_mut_ptr(),
+        core::mem::size_of::<<u16 as EndianScalar>::Scalar>(),
       );
     }
   }

@@ -8,7 +8,7 @@ edition = "2024"
 ctrlc = "3.5.1"
 flatbuffers = "25.12.19"
 
-mavlink = {version = "0.17.0", features = ["ardupilotmega", "common"]}
+mavlink = {version = "0.17.0", features = ["tcp"]}
 
 zenoh = {version = "1.7.2", features = ["shared-memory"]}
 zenoh-ext = "1.7.2"

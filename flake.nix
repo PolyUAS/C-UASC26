@@ -93,6 +93,7 @@
             pkgs.flatbuffers
           ];
           env.ZENOH_CONFIG = sharedConfig;
+          env.MAVLINK_CONN = "udpin:0.0.0.0:14551";
           shellHook = ''
             export ZENOH_CONFIG=${sharedConfig}
             alias j="just"
