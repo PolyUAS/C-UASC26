@@ -1,3 +1,4 @@
+use a8mini_camera_rs::A8Mini;
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::Connection;
 use mavlink::ardupilotmega::{
@@ -10,6 +11,7 @@ use mavlink::error::MessageReadError;
 
 use mavlink::{self, MavConnection, MavlinkVersion, Message};
 use std::error::Error;
+use std::future;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, sleep};
