@@ -62,42 +62,59 @@ path = "src/main.rs"
 """
 
 RUST_FLAKE_TEMPLATE = """{{
-  description = "{node_name} — Rust Zenoh Node";
+  description = "{node_name} -- Rust Zenoh Node";
+
   inputs = {{
+    flake-parts = {{
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    }};
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"; # This should point to whichever nixpkgs rev you want.
     naersk.url = "github:nix-community/naersk/master";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    utils.url = "github:numtide/flake-utils";
+
   }};
-  outputs = {{ self, nixpkgs, utils, naersk }}:
-    utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = nixpkgs.legacyPackages.${{system}};
-        naersk-lib = pkgs.callPackage naersk {{ }};
-      in
-      {{
-        packages.default = naersk-lib.buildPackage {{
+
+  outputs = {{ flake-parts, ... }} @ inputs: flake-parts.lib.mkFlake {{ inherit inputs; }} {{
+    imports = [
+      # ./module.nix
+      # inputs.foo.flakeModule
+    ];
+
+    perSystem = {{ config, self', inputs', pkgs, system, ... }}: {{
+
+      devShells.default = pkgs.mkShell {{
+        buildInputs = with pkgs; [
+          git
+          cargo
+          rustc
+          rustfmt
+          pre-commit
+          rustPackages.clippy
+        ];
+        RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
+      }};
+
+      packages.default =
+        let
+          naersk-lib = pkgs.callPackage inputs.naersk {{ }};
+        in
+        naersk-lib.buildPackage {{
           src = ./.;
           pname = "{node_name}";
-          # Optional: customize if needed
-          # doCheck = true;
-          # release = false;  # already default in naersk
+          nativeBuildInputs = [ pkgs.git ];
         }};
-        devShells.default = pkgs.mkShell {{
-          buildInputs = with pkgs; [
-            cargo
-            rustc
-            rustfmt
-            pre-commit
-            rustPackages.clippy
-          ];
-          RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
         }};
-        apps.default = utils.lib.mkApp {{
-          drv = self.packages.${{system}}.default;
-        }};
-      }}
-    );
+
+    flake = {{
+      # The usual flake attributes can be defined here, including
+      # system-agnostic and/or arbitrary outputs.
+    }};
+
+    # Declared systems that your flake supports. These will be enumerated in perSystem
+    systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+  }};
 }}
+
 """
 
 
