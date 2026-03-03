@@ -1,7 +1,14 @@
 import json
 
 from guidance.bridge import MissionZenohBridge, ack_to_json, parse_command_payload
-from guidance.contracts import AckStatus, CommandAck, CommandType
+from guidance.contracts import (
+    AckStatus,
+    CommandAck,
+    CommandType,
+    SupervisorAction,
+    SupervisorSignal,
+    SupervisorState,
+)
 
 
 class FakePublisher:
@@ -102,3 +109,61 @@ def test_process_once_rejects_invalid_json_payload():
     assert ack.command_id == "unknown"
     published_payload = json.loads(publisher.messages[-1])
     assert published_payload["status"] == "rejected"
+
+
+def test_supervisor_hold_blocks_non_failsafe_commands():
+    publisher = FakePublisher()
+    adapter = FakeAdapter()
+    session = FakeSession(publisher)
+    bridge = MissionZenohBridge(session=session, adapter=adapter)
+    bridge.set_supervisor_signal(
+        SupervisorSignal(
+            timestamp_ms=10,
+            state=SupervisorState.DEGRADED,
+            action=SupervisorAction.HOLD,
+            reason="sim_dropouts",
+        )
+    )
+
+    payload = json.dumps(
+        {
+            "command_id": "cmd-104",
+            "mission_id": "mission-waypoint",
+            "command_type": "goto",
+            "target": {"lat_deg": 1.0, "lon_deg": 2.0, "alt_m": 3.0},
+        }
+    )
+
+    ack = bridge.process_once(payload)
+
+    assert ack.status == AckStatus.REJECTED
+    assert "supervisor_blocked" in (ack.reason or "")
+    assert len(adapter.dispatched) == 0
+
+
+def test_supervisor_rtl_allows_rtl_command():
+    publisher = FakePublisher()
+    adapter = FakeAdapter()
+    session = FakeSession(publisher)
+    bridge = MissionZenohBridge(session=session, adapter=adapter)
+    bridge.set_supervisor_signal(
+        SupervisorSignal(
+            timestamp_ms=11,
+            state=SupervisorState.CRITICAL,
+            action=SupervisorAction.RTL,
+            reason="critical_link",
+        )
+    )
+
+    payload = json.dumps(
+        {
+            "command_id": "cmd-105",
+            "mission_id": "mission-waypoint",
+            "command_type": "rtl",
+        }
+    )
+
+    ack = bridge.process_once(payload)
+
+    assert ack.status == AckStatus.ACCEPTED
+    assert len(adapter.dispatched) == 1

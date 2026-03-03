@@ -1,11 +1,21 @@
-from guidance.contracts import AckStatus, CommandAck, CommandType, MissionCommand
+from guidance.contracts import (
+    AckStatus,
+    CommandAck,
+    CommandType,
+    MissionCommand,
+    SupervisorAction,
+    SupervisorSignal,
+    SupervisorState,
+)
 from guidance.wire_format import (
     WIRE_FORMAT_FLEXBUFFERS,
     WIRE_FORMAT_JSON,
     decode_ack,
     decode_command,
+    decode_supervisor_signal,
     encode_ack,
     encode_command,
+    encode_supervisor_signal,
 )
 
 
@@ -62,3 +72,35 @@ def test_flexbuffers_ack_roundtrip():
     assert decoded.command_id == ack.command_id
     assert decoded.status == AckStatus.FAILED
     assert decoded.reason == "timeout"
+
+
+def test_json_supervisor_signal_roundtrip():
+    signal = SupervisorSignal(
+        timestamp_ms=700,
+        state=SupervisorState.CRITICAL,
+        action=SupervisorAction.RTL,
+        reason="critical_link",
+    )
+
+    encoded = encode_supervisor_signal(signal, WIRE_FORMAT_JSON)
+    decoded = decode_supervisor_signal(encoded, WIRE_FORMAT_JSON)
+
+    assert decoded.timestamp_ms == 700
+    assert decoded.state == SupervisorState.CRITICAL
+    assert decoded.action == SupervisorAction.RTL
+
+
+def test_flexbuffers_supervisor_signal_roundtrip():
+    signal = SupervisorSignal(
+        timestamp_ms=701,
+        state=SupervisorState.DEGRADED,
+        action=SupervisorAction.HOLD,
+        reason="degraded_link",
+    )
+
+    encoded = encode_supervisor_signal(signal, WIRE_FORMAT_FLEXBUFFERS)
+    decoded = decode_supervisor_signal(encoded, WIRE_FORMAT_FLEXBUFFERS)
+
+    assert decoded.timestamp_ms == 701
+    assert decoded.state == SupervisorState.DEGRADED
+    assert decoded.action == SupervisorAction.HOLD

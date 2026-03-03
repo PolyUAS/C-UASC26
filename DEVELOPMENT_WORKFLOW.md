@@ -70,11 +70,45 @@ cd guidance
 nix develop -c bash --noprofile --norc -lc 'guidance-ack-monitor'
 ```
 
+Run MuJoCo telemetry adapter stub:
+
+```bash
+cd guidance
+nix develop -c bash --noprofile --norc -lc 'guidance-mujoco-telemetry'
+```
+
+Publish a supervisor signal (JSON example) to test bridge gating:
+
+```bash
+cd guidance
+nix develop -c bash --noprofile --norc -lc 'python - <<"PY"
+import zenoh, json
+payload = {
+	"timestamp_ms": 1,
+	"state": "critical",
+	"action": "rtl",
+	"reason": "simulated_link_loss"
+}
+session = zenoh.open(zenoh.Config().from_env())
+pub = session.declare_publisher("guidance/supervisor/signal")
+pub.put(json.dumps(payload))
+session.close()
+PY'
+```
+
 Recommended 3-terminal loop:
 
 1. Terminal A: ArduPilot SITL + MAVLink endpoint (`udpin:127.0.0.1:14550`).
 2. Terminal B: `guidance-bridge` process.
 3. Terminal C: `guidance-publish-command --file examples/mission_commands/goto.json`.
+
+Recommended 5-terminal simulation orchestration loop:
+
+1. Terminal A: ArduPilot SITL + MAVLink endpoint (`udpin:127.0.0.1:14550`).
+2. Terminal B: `guidance-bridge`.
+3. Terminal C: `guidance-ack-monitor`.
+4. Terminal D: `guidance-mujoco-telemetry`.
+5. Terminal E: simulator publishers (`sim/mujoco/state`) + `guidance-publish-command` commands.
 
 Watch for:
 - Ack messages on `guidance/mission/ack`.

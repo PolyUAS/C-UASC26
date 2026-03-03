@@ -17,6 +17,7 @@ guidance = "guidance:main"
 guidance-bridge = "guidance.bridge_main:main"
 guidance-publish-command = "guidance.command_publisher:main"
 guidance-ack-monitor = "guidance.ack_monitor:main"
+guidance-mujoco-telemetry = "guidance.mujoco_telemetry_main:main"
 
 [build-system]
 requires = ["uv_build>=0.9.0,<0.10.0"]

@@ -7,18 +7,20 @@ This document focuses on software execution first, with hardware connection defe
 ### Current state
 
 - Implemented mission command bridge runtime (`guidance-bridge`) from Zenoh command topic to MAVLink adapter dispatch.
+- Implemented supervisor-gated bridge behavior driven by `guidance/supervisor/signal`.
 - Implemented mission command publisher (`guidance-publish-command`) with command JSON fixtures.
 - Implemented acknowledgement monitor (`guidance-ack-monitor`).
 - Implemented replay logger to JSONL for deterministic playback.
 - Implemented optional wire-format path: JSON (default) and FlexBuffers.
+- Implemented MuJoCo telemetry adapter stub (`guidance-mujoco-telemetry`) from `sim/mujoco/state` to `vehicle/telemetry/fc`.
 
 ### Remaining software tasks
 
 1. Add mission state telemetry stream topic(s) for state transition observability.
-2. Add supervisor signal publish/subscribe integration into the bridge loop.
+2. Add supervisor action test scenarios in full simulation timelines (hold/rtl/abort cases).
 3. Add deterministic scenario runner that replays command/telemetry timelines.
-4. Add simulation adapters for:
-   - MuJoCo vehicle dynamics state output.
+4. Expand simulation adapters for:
+   - MuJoCo vehicle dynamics state output (stub implemented, requires simulator topic source hookup).
    - Optional Genesis vision stream output.
    - Optional Gymnasium training loop policy output.
 5. Add acceptance tests for simulation cases:
@@ -84,7 +86,7 @@ Stage 5 software work can be done before plugging hardware in.
 
 ## Recommended immediate next sprint
 
-1. Add simulation telemetry adapter for MuJoCo state feed.
-2. Add mission-state telemetry topic and structured state snapshots.
-3. Add scenario runner for deterministic timeline playback.
-4. Integrate supervisor signals into bridge command gating.
+1. Add mission-state telemetry topic and structured state snapshots.
+2. Add scenario runner for deterministic timeline playback.
+3. Add Genesis perception adapter stub and topic bridge.
+4. Add Gymnasium policy command adapter stub.

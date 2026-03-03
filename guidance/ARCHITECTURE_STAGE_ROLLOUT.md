@@ -13,7 +13,7 @@ This topology is supported as-is, while still allowing software redesign to redu
 - Reproducibility-first workflow: all build/test/run commands execute through module `nix develop` shells.
 - Two-language strategy: Python for mission and orchestration ergonomics, Rust for lower-level reliability and memory safety.
 - Pub/sub middleware: Zenoh topics are the default process boundary between guidance, navigation, and future nodes.
-- Serialization target: FlatBuffers remains the long-term payload format for low-overhead transport; JSON is currently used for early-stage bridge bring-up and debugging.
+- Serialization target: FlatBuffers remains the long-term payload format for low-overhead transport; JSON is currently used for early-stage bridge bring-up and debugging, with an optional FlexBuffers wire path for schema-light bring-up.
 
 ## Layered software architecture
 
@@ -78,6 +78,25 @@ Deliverables:
 
 Implemented scaffold:
 - `guidance.bridge_main` provides a mission command bridge that subscribes to `guidance/mission/command`, dispatches through a MAVLink adapter, publishes `guidance/mission/ack`, and appends JSONL replay logs.
+- Bridge now supports supervisor-gated dispatch: incoming `guidance/supervisor/signal` updates can block mission commands except approved failsafe intents.
+- `guidance.mujoco_telemetry_main` provides a simulation telemetry bridge from `sim/mujoco/state` to `vehicle/telemetry/fc`.
+
+## Serialization integration (FlatBuffers vs FlexBuffers)
+
+- **FlatBuffers**
+   - Schema-first (`.fbs`) binary layout with generated code.
+   - Best for stable contracts between services, CI-enforced schema evolution, and highest runtime efficiency.
+   - Recommended target for production guidance/navigation payloads.
+
+- **FlexBuffers**
+   - Schema-less binary format in the FlatBuffers family.
+   - Faster to iterate in simulation bring-up because payload keys can evolve without codegen.
+   - Best for early prototyping and debugging, not long-term contract governance.
+
+- **Current repository usage**
+   - JSON remains default wire format for transparency and tool simplicity.
+   - Optional FlexBuffers path is available through `GUIDANCE_WIRE_FORMAT=flexbuffers` for binary transport rehearsals.
+   - Migration path: JSON/FlexBuffers during stage-4 iteration, then pin high-value contracts to FlatBuffers schemas for stage-5/6 hardening.
 
 ## Stage 5: HITL integration with SIYI hardware path
 
