@@ -9,7 +9,8 @@ a8mini-camera-rs = "0.2.1"
 ctrlc = "3.5.1"
 flatbuffers = "25.12.19"
 
-mavlink = {version = "0.17.0", features = ["tcp"]}
+mavlink = {version = "0.17.0", features = ["tcp", "tokio-1"]}
+tokio = "1.49.0"
 
 
 zenoh = {version = "1.7.2", features = ["shared-memory"]}

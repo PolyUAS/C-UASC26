@@ -21,6 +21,11 @@ use zenoh::{self, Wait};
 mod state_generated;
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let rt = tokio::runtime::Runtime::new().expect("Failed to initialize runtime");
+    let camera = rt
+        .block_on(A8Mini::connect())
+        .expect("Failed to connect to camera");
+
     // Configuration
     // Recommended – TCP (very reliable for localhost)
     // let mavlink_conn_str = "tcp:127.0.0.1:5760".to_string();
