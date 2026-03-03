@@ -8,6 +8,13 @@
 
 This topology is supported as-is, while still allowing software redesign to reduce coupling and improve failure handling.
 
+## BROS alignment notes
+
+- Reproducibility-first workflow: all build/test/run commands execute through module `nix develop` shells.
+- Two-language strategy: Python for mission and orchestration ergonomics, Rust for lower-level reliability and memory safety.
+- Pub/sub middleware: Zenoh topics are the default process boundary between guidance, navigation, and future nodes.
+- Serialization target: FlatBuffers remains the long-term payload format for low-overhead transport; JSON is currently used for early-stage bridge bring-up and debugging.
+
 ## Layered software architecture
 
 1. **Mission layer (Python / guidance)**

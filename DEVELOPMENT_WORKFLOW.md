@@ -42,6 +42,23 @@ cd guidance
 nix develop -c bash --noprofile --norc -lc 'MAVLINK_CONNECTION=udpin:127.0.0.1:14550 GUIDANCE_REPLAY_PATH=logs/mission_dispatch.jsonl guidance-bridge'
 ```
 
+Publish a command fixture to the bridge:
+
+```bash
+cd guidance
+nix develop -c bash --noprofile --norc -lc 'guidance-publish-command --file examples/mission_commands/arm.json'
+```
+
+Recommended 3-terminal loop:
+
+1. Terminal A: ArduPilot SITL + MAVLink endpoint (`udpin:127.0.0.1:14550`).
+2. Terminal B: `guidance-bridge` process.
+3. Terminal C: `guidance-publish-command --file examples/mission_commands/goto.json`.
+
+Watch for:
+- Ack messages on `guidance/mission/ack`.
+- Replay lines appended at `logs/mission_dispatch.jsonl`.
+
 ```bash
 cd navigation
 nix develop -c bash --noprofile --norc -lc 'cargo run'
