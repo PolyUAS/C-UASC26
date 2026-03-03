@@ -9,7 +9,7 @@ a8mini-camera-rs = "0.2.1"
 ctrlc = "3.5.1"
 flatbuffers = "25.12.19"
 
-mavlink = {version = "0.17.0", features = ["tcp", "tokio-1"]}
+mavlink = {version = "0.17.0", features = ["tcp"]}
 tokio = "1.49.0"
 
 
