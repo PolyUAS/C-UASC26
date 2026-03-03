@@ -1,0 +1,11 @@
+namespace Gimbal;
+
+
+table State {
+    yaw: int16;
+    pitch: int16;
+    zoom: float32;
+}
+
+
+root_type State;

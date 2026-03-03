@@ -1,5 +1,4 @@
-use a8mini_camera_rs::A8Mini;
-use flatbuffers::{self, FlatBufferBuilder};
+use flatbuffers::{self, FlatBufferBuilder, Follow};
 use mavlink::Connection;
 use mavlink::ardupilotmega::{
     ALTITUDE_DATA, ATTITUDE_DATA, COMMAND_LONG_DATA, CONTROL_SYSTEM_STATE_DATA,
@@ -10,21 +9,28 @@ use mavlink::ardupilotmega::{
 use mavlink::error::MessageReadError;
 
 use mavlink::{self, MavConnection, MavlinkVersion, Message};
+use siyi_protocol::a8mini_udp::{
+    self, FirmwareVersionRequest, GimbalAttitudeRequest, GimbalRotationRequest,
+};
 use std::error::Error;
 use std::future;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, sleep};
 use std::time::Duration;
+
+use tokio::runtime::Runtime;
 use zenoh::{self, Wait};
 
+mod gimbal_generated;
 mod state_generated;
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let rt = tokio::runtime::Runtime::new().expect("Failed to initialize runtime");
-    let camera = rt
-        .block_on(A8Mini::connect())
-        .expect("Failed to connect to camera");
+    let cam_socket = std::net::UdpSocket::bind("192.168.144.25:37260")
+        .expect("Failed to connect to A8 Mini's UDP socket");
+
+    let cam_arc = Arc::new(cam_socket);
 
     // Configuration
     // Recommended – TCP (very reliable for localhost)
@@ -53,7 +59,44 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
     // Setup publisher
-    let state_pub = session.declare_publisher("mavlink/state").wait()?;
+    let state_pub = session.declare_publisher("control/out/state").wait()?;
+
+    let gimbal_sub = session
+        .declare_subscriber("control/in/gimbal")
+        .callback({
+            let cam_sock = cam_arc.clone();
+            move |sample| {
+                let bytes = sample.payload().to_bytes();
+                match gimbal_generated::gimbal::root_as_state(&bytes) {
+                    Ok(state) => {
+                        let mut set_att = a8mini_udp::SetGimbalAttitudeRequest::default();
+                        set_att.pitch = state.pitch();
+                        set_att.yaw = state.yaw();
+
+                        let mut set_zoom = a8mini_udp::AbsoluteZoomRequest::default();
+
+                        let mut rounded_zoom = state.zoom().round() as u8;
+                        rounded_zoom = rounded_zoom.clamp(0x1, 0x1e);
+
+                        let mut frac_zoom =
+                            ((state.zoom() - state.zoom().round()) * 10.0).round() as u8;
+
+                        frac_zoom = frac_zoom.clamp(0x1, 0x9);
+                        set_zoom.zoom_int = rounded_zoom;
+                        set_zoom.zoom_float = frac_zoom;
+
+                        println!(
+                            "Gimbal (fragmented): yaw={} pitch={}",
+                            state.yaw(),
+                            state.pitch()
+                        );
+                    }
+                    Err(e) => eprintln!("Parse failed even after copy: {}", e),
+                }
+            }
+        })
+        .wait()?;
+
     sleep(Duration::from_millis(500)); // Wait for subscribers
 
     // Shutdown signal ptr
@@ -88,9 +131,19 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     session
         .close()
         .wait()
-        .expect("Failed to close mavlink's zenoh session:");
+        .expect("Failed to close control's zenoh session:");
 
     Ok(())
+}
+
+#[inline]
+fn control_gimbal(
+    camera: A8Mini,
+    pitch: i16,
+    yaw: i16,
+    runtime: Runtime,
+) -> anyhow::Result<[u8; 64]> {
+    runtime.block_on(camera.send_command(A8MiniComplexCommand::SetYawPitchAngle(yaw, pitch)))
 }
 
 fn heartbeat_loop(vehicle: &Arc<Connection<MavMessage>>, running: &Arc<AtomicBool>) {
