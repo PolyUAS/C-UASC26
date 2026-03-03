@@ -1,39 +1,39 @@
 import argparse
-from dataclasses import asdict
-import json
 from pathlib import Path
 from typing import Any
 
 from guidance.bridge import MISSION_COMMAND_TOPIC
-from guidance.contracts import CommandType, MissionCommand
+from guidance.contracts import MissionCommand
+from guidance.wire_format import (
+    WIRE_FORMAT_JSON,
+    encode_command,
+    mapping_to_command,
+)
 
 
 def mission_command_to_json(command: MissionCommand) -> str:
-    payload = asdict(command)
-    payload["command_type"] = command.command_type.value
-    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    return encode_command(command, WIRE_FORMAT_JSON).decode("utf-8")
 
 
 def command_from_mapping(data: dict[str, Any]) -> MissionCommand:
-    return MissionCommand(
-        command_id=str(data["command_id"]),
-        mission_id=str(data["mission_id"]),
-        command_type=CommandType(str(data["command_type"])),
-        target=dict(data.get("target", {})),
-        timeout_sec=float(data.get("timeout_sec", 2.0)),
-        safety_mode=str(data.get("safety_mode", "normal")),
-    )
+    return mapping_to_command(data)
 
 
 def load_command_from_file(file_path: str | Path) -> MissionCommand:
+    import json
+
     data = json.loads(Path(file_path).read_text(encoding="utf-8"))
     return command_from_mapping(data)
 
 
-def publish_command(command: MissionCommand, topic: str = MISSION_COMMAND_TOPIC) -> str:
+def publish_command(
+    command: MissionCommand,
+    topic: str = MISSION_COMMAND_TOPIC,
+    wire_format: str = WIRE_FORMAT_JSON,
+) -> bytes:
     import zenoh
 
-    payload = mission_command_to_json(command)
+    payload = encode_command(command, wire_format)
 
     try:
         session = zenoh.open(zenoh.Config().from_env())
@@ -61,14 +61,23 @@ def _parse_args() -> argparse.Namespace:
         default=MISSION_COMMAND_TOPIC,
         help="Zenoh topic to publish mission command payload",
     )
+    parser.add_argument(
+        "--wire-format",
+        default=WIRE_FORMAT_JSON,
+        choices=["json", "flexbuffers"],
+        help="Payload wire format for published command",
+    )
     return parser.parse_args()
 
 
 def main():
     args = _parse_args()
     command = load_command_from_file(args.file)
-    payload = publish_command(command, topic=args.topic)
-    print(f"Published mission command: {payload}")
+    payload = publish_command(command, topic=args.topic, wire_format=args.wire_format)
+    if args.wire_format == WIRE_FORMAT_JSON:
+        print(f"Published mission command: {payload.decode('utf-8')}")
+    else:
+        print(f"Published mission command ({args.wire_format}): {len(payload)} bytes")
 
 
 if __name__ == "__main__":

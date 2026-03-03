@@ -42,11 +42,32 @@ cd guidance
 nix develop -c bash --noprofile --norc -lc 'MAVLINK_CONNECTION=udpin:127.0.0.1:14550 GUIDANCE_REPLAY_PATH=logs/mission_dispatch.jsonl guidance-bridge'
 ```
 
+Run bridge with optional FlexBuffers wire format:
+
+```bash
+cd guidance
+nix develop -c bash --noprofile --norc -lc 'GUIDANCE_WIRE_FORMAT=flexbuffers MAVLINK_CONNECTION=udpin:127.0.0.1:14550 guidance-bridge'
+```
+
 Publish a command fixture to the bridge:
 
 ```bash
 cd guidance
 nix develop -c bash --noprofile --norc -lc 'guidance-publish-command --file examples/mission_commands/arm.json'
+```
+
+Publish in FlexBuffers wire format:
+
+```bash
+cd guidance
+nix develop -c bash --noprofile --norc -lc 'guidance-publish-command --wire-format flexbuffers --file examples/mission_commands/goto.json'
+```
+
+Monitor acknowledgement messages:
+
+```bash
+cd guidance
+nix develop -c bash --noprofile --norc -lc 'guidance-ack-monitor'
 ```
 
 Recommended 3-terminal loop:
