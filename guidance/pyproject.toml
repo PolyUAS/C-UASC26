@@ -14,6 +14,7 @@ dependencies = [
 # the function must be visible (i.e. imported or defined) in __init__.py
 [project.scripts]
 guidance = "guidance:main"
+guidance-bridge = "guidance.bridge_main:main"
 
 [build-system]
 requires = ["uv_build>=0.9.0,<0.10.0"]

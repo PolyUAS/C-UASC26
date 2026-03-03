@@ -65,6 +65,7 @@
             packages = [
               virtualenv
               pkgs.uv
+              pkgs.python3Packages.pytest
             ];
             env = {
               UV_NO_SYNC = "1";

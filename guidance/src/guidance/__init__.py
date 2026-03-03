@@ -2,14 +2,12 @@
 """
 guidance - Python Zenoh Node
 """
-import os
-import sys
 from time import sleep
-
-import zenoh
 
 
 def main():
+    import zenoh
+
     try:
         session = zenoh.open(zenoh.Config().from_env())
     except zenoh.ZError:

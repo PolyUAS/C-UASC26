@@ -1,3 +1,14 @@
+# LKS
+#
+# Waypoint navigation FSM for unordered waypoint mission
+# This FSM handles the complex logic of navigating to a set of unordered waypoints, including:
+# - Route optimization (TSP)
+# - State transitions for takeoff, navigation, approach, verification, and return
+# - Judge logger verification
+# - Performance tracking for scoring
+# This FSM is one piece of the 6 event FSMs, each of which inherits from the
+# base MissionStateMachine and implements its own mission logic and scoring.
+
 import math
 from enum import Enum
 from typing import Any, Callable, Dict, List
