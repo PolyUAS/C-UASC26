@@ -10,7 +10,8 @@ use mavlink::error::MessageReadError;
 
 use mavlink::{self, MavConnection, MavlinkVersion, Message};
 use siyi_protocol::a8mini_udp::{
-    self, FirmwareVersionRequest, GimbalAttitudeRequest, GimbalRotationRequest,
+    self, FirmwareVersionRequest, GimbalAttitudeRequest, GimbalRotationRequest, MAX_FRAME_SIZE,
+    MAX_MESSAGE_SIZE,
 };
 use std::error::Error;
 use std::future;
@@ -70,26 +71,39 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 match gimbal_generated::gimbal::root_as_state(&bytes) {
                     Ok(state) => {
                         let mut set_att = a8mini_udp::SetGimbalAttitudeRequest::default();
-                        set_att.pitch = state.pitch();
-                        set_att.yaw = state.yaw();
+                        set_att.pitch = ((state.pitch() * 10.0).round() as i16).clamp(-1350, 1350);
+                        set_att.yaw = ((state.yaw() * 10.0).round() as i16).clamp(-900, 250);
 
                         let mut set_zoom = a8mini_udp::AbsoluteZoomRequest::default();
 
-                        let mut rounded_zoom = state.zoom().round() as u8;
-                        rounded_zoom = rounded_zoom.clamp(0x1, 0x1e);
+                        let zoom = state.zoom().clamp(1.0, 6.0); // A8 mini real limit
+                        let zoom_int = zoom.floor() as u8; // 1..6
+                        let zoom_frac =
+                            (((zoom - zoom_int as f32) * 10.0).round() as u8).clamp(0, 9);
 
-                        let mut frac_zoom =
-                            ((state.zoom() - state.zoom().round()) * 10.0).round() as u8;
-
-                        frac_zoom = frac_zoom.clamp(0x1, 0x9);
-                        set_zoom.zoom_int = rounded_zoom;
-                        set_zoom.zoom_float = frac_zoom;
+                        set_zoom.zoom_int = zoom_int;
+                        set_zoom.zoom_float = zoom_frac;
 
                         println!(
                             "Gimbal (fragmented): yaw={} pitch={}",
                             state.yaw(),
                             state.pitch()
                         );
+                        println!(
+                            "Zoom (fragmented): int={}, float={}, overall: {}.{}",
+                            zoom_int, zoom_frac, zoom_int, zoom_frac
+                        );
+
+                        let mut buffer = [0u8; MAX_MESSAGE_SIZE];
+
+                        set_att.encode(&mut buffer);
+
+                        cam_sock
+                            .send(&buffer)
+                            .expect("Failed to send attitude command");
+
+                        set_zoom.encode(&mut buffer);
+                        cam_sock.send(&buffer).expect("Failed to send zoom command");
                     }
                     Err(e) => eprintln!("Parse failed even after copy: {}", e),
                 }
@@ -134,16 +148,6 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .expect("Failed to close control's zenoh session:");
 
     Ok(())
-}
-
-#[inline]
-fn control_gimbal(
-    camera: A8Mini,
-    pitch: i16,
-    yaw: i16,
-    runtime: Runtime,
-) -> anyhow::Result<[u8; 64]> {
-    runtime.block_on(camera.send_command(A8MiniComplexCommand::SetYawPitchAngle(yaw, pitch)))
 }
 
 fn heartbeat_loop(vehicle: &Arc<Connection<MavMessage>>, running: &Arc<AtomicBool>) {

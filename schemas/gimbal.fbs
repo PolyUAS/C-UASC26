@@ -2,8 +2,8 @@ namespace Gimbal;
 
 
 table State {
-    yaw: int16;
-    pitch: int16;
+    yaw: float32;
+    pitch: float32;
     zoom: float32;
 }
 

@@ -45,18 +45,18 @@ impl<'a> State<'a> {
 
 
   #[inline]
-  pub fn yaw(&self) -> i16 {
+  pub fn yaw(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<i16>(State::VT_YAW, Some(0)).unwrap()}
+    unsafe { self._tab.get::<f32>(State::VT_YAW, Some(0.0)).unwrap()}
   }
   #[inline]
-  pub fn pitch(&self) -> i16 {
+  pub fn pitch(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<i16>(State::VT_PITCH, Some(0)).unwrap()}
+    unsafe { self._tab.get::<f32>(State::VT_PITCH, Some(0.0)).unwrap()}
   }
   #[inline]
   pub fn zoom(&self) -> f32 {
@@ -73,24 +73,24 @@ impl ::flatbuffers::Verifiable for State<'_> {
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
-     .visit_field::<i16>("yaw", Self::VT_YAW, false)?
-     .visit_field::<i16>("pitch", Self::VT_PITCH, false)?
+     .visit_field::<f32>("yaw", Self::VT_YAW, false)?
+     .visit_field::<f32>("pitch", Self::VT_PITCH, false)?
      .visit_field::<f32>("zoom", Self::VT_ZOOM, false)?
      .finish();
     Ok(())
   }
 }
 pub struct StateArgs {
-    pub yaw: i16,
-    pub pitch: i16,
+    pub yaw: f32,
+    pub pitch: f32,
     pub zoom: f32,
 }
 impl<'a> Default for StateArgs {
   #[inline]
   fn default() -> Self {
     StateArgs {
-      yaw: 0,
-      pitch: 0,
+      yaw: 0.0,
+      pitch: 0.0,
       zoom: 0.0,
     }
   }
@@ -102,12 +102,12 @@ pub struct StateBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
 }
 impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> StateBuilder<'a, 'b, A> {
   #[inline]
-  pub fn add_yaw(&mut self, yaw: i16) {
-    self.fbb_.push_slot::<i16>(State::VT_YAW, yaw, 0);
+  pub fn add_yaw(&mut self, yaw: f32) {
+    self.fbb_.push_slot::<f32>(State::VT_YAW, yaw, 0.0);
   }
   #[inline]
-  pub fn add_pitch(&mut self, pitch: i16) {
-    self.fbb_.push_slot::<i16>(State::VT_PITCH, pitch, 0);
+  pub fn add_pitch(&mut self, pitch: f32) {
+    self.fbb_.push_slot::<f32>(State::VT_PITCH, pitch, 0.0);
   }
   #[inline]
   pub fn add_zoom(&mut self, zoom: f32) {
