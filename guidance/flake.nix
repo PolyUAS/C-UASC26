@@ -65,7 +65,6 @@
             packages = [
               virtualenv
               pkgs.uv
-              pkgs.python3Packages.pytest
             ];
             env = {
               UV_NO_SYNC = "1";
@@ -74,7 +73,7 @@
             };
             shellHook = ''
               unset PYTHONPATH
-              export REPO_ROOT=$(git rev-parse --show-toplevel)
+              export REPO_ROOT=$(git rev-parse --show-toplevel)/guidance
             '';
           };
         }

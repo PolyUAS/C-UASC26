@@ -1,5 +1,6 @@
 from dataclasses import asdict
 import json
+import os
 from typing import Any
 
 from guidance.contracts import VehicleTelemetry
@@ -35,7 +36,30 @@ class MuJoCoTelemetryAdapter:
 
     @staticmethod
     def to_telemetry_payload(telemetry: VehicleTelemetry) -> bytes:
+        """Encode telemetry for Zenoh publishing.
+
+        Uses FlatBuffers if GUIDANCE_WIRE_FORMAT=flatbuffers,
+        otherwise falls back to JSON.
+        """
+        wire_format = os.environ.get("GUIDANCE_WIRE_FORMAT", "json")
+        if wire_format == "flatbuffers":
+            try:
+                from guidance.wire_format import encode_vehicle_telemetry_flatbuf
+                return encode_vehicle_telemetry_flatbuf(telemetry)
+            except ImportError:
+                pass
         return json.dumps(asdict(telemetry), separators=(",", ":"), sort_keys=True).encode("utf-8")
+
+    @staticmethod
+    def to_telemetry_payload_json(telemetry: VehicleTelemetry) -> bytes:
+        """Always JSON — used for replay/debugging."""
+        return json.dumps(asdict(telemetry), separators=(",", ":"), sort_keys=True).encode("utf-8")
+
+    @staticmethod
+    def to_telemetry_payload_flatbuf(telemetry: VehicleTelemetry) -> bytes:
+        """Always FlatBuffers — for production wire format."""
+        from guidance.wire_format import encode_vehicle_telemetry_flatbuf
+        return encode_vehicle_telemetry_flatbuf(telemetry)
 
 
 class MuJoCoTelemetryZenohBridge:

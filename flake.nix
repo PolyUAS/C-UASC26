@@ -7,7 +7,10 @@
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
-
+    guidance.url = "./guidance";
+    navigation.url = "./navigation";
+    control.url = "./control";
+    mujoco-sim.url = "./mujoco-sim";
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -51,6 +54,12 @@
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
 
+          # Flight stack modules
+          guidance   = inputs.guidance.packages.${system}.default;
+          navigation = inputs.navigation.packages.${system}.default;
+          control    = inputs.control.packages.${system}.default;
+          mujoco-sim = inputs.mujoco-sim.packages.${system}.default;
+
           # Launcher: Spins up all with shared config
           demo = pkgs.writeShellApplication {
             name = "demo-ping-pong-zenoh";
@@ -73,6 +82,75 @@
             '';
           };
 
+          # Sim stack: MuJoCo physics + guidance bridge + navigation (no hardware)
+          sim-stack = pkgs.writeShellApplication {
+            name = "sim-stack";
+            runtimeInputs = [
+              self'.packages.mujoco-sim
+              self'.packages.navigation
+            ];
+            text = ''
+              export ZENOH_CONFIG=${sharedConfig}
+              export SIM_MODE=1
+              echo "[sim-stack] Starting MuJoCo sim stack..."
+
+              PIDS=""
+              cleanup() {
+                echo "[sim-stack] Shutting down..."
+                for pid in $PIDS; do
+                  kill "$pid" 2>/dev/null || true
+                done
+              }
+              trap cleanup EXIT SIGINT SIGTERM
+
+              # 1. MuJoCo sim (publishes sim/mujoco/state + heartbeats)
+              mujoco-sim &
+              PIDS="$PIDS $!"
+
+              # 2. Navigation watchdog
+              navigation &
+              PIDS="$PIDS $!"
+
+              echo "[sim-stack] All processes started. Ctrl+C to stop."
+              wait
+            '';
+          };
+
+          # SITL stack: ArduPilot SITL + control node + guidance + navigation
+          sitl-stack = pkgs.writeShellApplication {
+            name = "sitl-stack";
+            runtimeInputs = [
+              self'.packages.control
+              self'.packages.navigation
+            ];
+            text = ''
+              export ZENOH_CONFIG=${sharedConfig}
+              MAVLINK_CONN="''${MAVLINK_CONN:-tcp:127.0.0.1:5760}"
+              export MAVLINK_CONN
+              echo "[sitl-stack] Starting SITL stack (MAVLINK_CONN=$MAVLINK_CONN)..."
+
+              PIDS=""
+              cleanup() {
+                echo "[sitl-stack] Shutting down..."
+                for pid in $PIDS; do
+                  kill "$pid" 2>/dev/null || true
+                done
+              }
+              trap cleanup EXIT SIGINT SIGTERM
+
+              # 1. Control bridge (MAVLink ↔ Zenoh)
+              control &
+              PIDS="$PIDS $!"
+
+              # 2. Navigation watchdog
+              navigation &
+              PIDS="$PIDS $!"
+
+              echo "[sitl-stack] All processes started. Ctrl+C to stop."
+              wait
+            '';
+          };
+
           default = self'.packages.demo;
         };
 
@@ -81,14 +159,11 @@
             self'.packages.demo
             self'.packages.rust_demo
             self'.packages.python_demo
-
             self'.packages.hello_world
-
 
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
-
           ];
           env.ZENOH_CONFIG = sharedConfig;
           shellHook = ''

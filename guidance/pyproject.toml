@@ -6,7 +6,11 @@ requires-python = ">=3.12"
 dependencies = [
  "eclipse-zenoh>=1.7.1",
  "flatbuffers>=25.12.19",
+]
 
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
 ]
 
 # this defines the entrypoint of the python program.

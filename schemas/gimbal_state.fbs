@@ -1,0 +1,15 @@
+// Gimbal state — published on control/out/gimbal
+// Already exists as gimbal_generated.rs on mavlink branch.
+// Canonical schema retained here for documentation and re-generation.
+// Producer: control (hardware gimbal polling)
+// Consumer: vision-pipeline (future), telemetry monitors
+
+namespace gimbal;
+
+table State {
+  yaw:   float32;
+  pitch: float32;
+  zoom:  float32;
+}
+
+root_type State;

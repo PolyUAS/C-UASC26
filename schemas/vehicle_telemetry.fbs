@@ -1,0 +1,20 @@
+// Canonical VehicleTelemetry — published on vehicle/telemetry/fc
+// Producer: control (hardware) OR guidance-mujoco-telemetry (simulation)
+// Consumers: mission FSMs, guidance-bridge, telemetry monitors
+
+namespace vehicle;
+
+table VehicleTelemetry {
+  timestamp_ms:  uint64;
+  lat_deg:       float64;
+  lon_deg:       float64;
+  alt_m:         float64;
+  vn_mps:        float32;
+  ve_mps:        float32;
+  vd_mps:        float32;
+  battery_pct:   float32;
+  flight_mode:   string;
+  link_quality:  float32;
+}
+
+root_type VehicleTelemetry;

@@ -1,0 +1,23 @@
+[package]
+name = "control"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+siyi-protocol = { version = "0.1", features = ["a8mini", "udp"] }
+anyhow = "1.0.102"
+
+ctrlc = "3.5.1"
+flatbuffers = "25.12.19"
+
+mavlink = {version = "0.17.0", features = ["tcp"]}
+tokio = "1.49.0"
+
+
+zenoh = {version = "1.7.2", features = ["shared-memory"]}
+zenoh-ext = "1.7.2"
+
+[[bin]]
+name = "control"
+path = "src/main.rs"
