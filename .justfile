@@ -101,6 +101,56 @@ build-all:
 test-guidance:
     cd guidance && nix develop -c bash --noprofile --norc -lc 'python -m pytest tests/ -v'
 
+# Run only unit tests
+test-unit:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python -m pytest tests/unit/ -v'
+
+# Run only integration tests
+test-integration:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python -m pytest tests/integration/ -v'
+
+# Run only simulation tests (includes Zenoh dataflow)
+test-sim:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python -m pytest tests/simulation/ -v'
+
+# Run Zenoh dataflow test bench
+test-dataflow:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python -m pytest tests/simulation/test_zenoh_dataflow.py -v'
+
 # Generate Python FlatBuffers code from schemas
 generate-flatbuffers:
     nix develop -c bash --noprofile --norc -lc 'bash scripts/generate_flatbuffers.sh'
+
+# --- Debug / monitoring tools ---
+
+# Live Zenoh topic dashboard (all topics, refreshes every 1s)
+monitor-dashboard:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_topic_monitor.py --dashboard'
+
+# Stream Zenoh messages to stdout (firehose mode)
+monitor-stream:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_topic_monitor.py'
+
+# Track flight-brain state transitions
+monitor-brain:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_brain_tracker.py'
+
+# Track brain state and log to file
+monitor-brain-log:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_brain_tracker.py --log logs/brain_transitions.jsonl'
+
+# Inject a test command sequence (arm → takeoff → goto → hold → rtl)
+inject-sequence:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_inject_command.py sequence'
+
+# Inject a single arm command
+inject-arm:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_inject_command.py arm'
+
+# Inject a single takeoff command
+inject-takeoff:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_inject_command.py takeoff --alt 30'
+
+# Inject a goto command with custom coordinates
+inject-goto-custom LAT LON ALT:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_inject_command.py goto --lat {{ LAT }} --lon {{ LON }} --alt {{ ALT }}'

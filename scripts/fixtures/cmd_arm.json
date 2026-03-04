@@ -1,0 +1,8 @@
+{
+  "command_id": "test-arm-001",
+  "mission_id": "test-mission",
+  "command_type": "arm",
+  "target": {},
+  "timeout_sec": 5.0,
+  "safety_mode": "normal"
+}
