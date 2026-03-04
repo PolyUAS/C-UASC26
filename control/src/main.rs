@@ -1,33 +1,28 @@
-use flatbuffers::{self, FlatBufferBuilder, Follow};
+use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::Connection;
-use mavlink::ardupilotmega::{
-    ALTITUDE_DATA, ATTITUDE_DATA, COMMAND_LONG_DATA, CONTROL_SYSTEM_STATE_DATA,
-    EXTENDED_SYS_STATE_DATA, HEARTBEAT_DATA, HIL_STATE_QUATERNION_DATA, MavCmd, MavMessage,
-    MavModeFlag, STATUSTEXT_DATA,
-};
+use mavlink::ardupilotmega::{ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag};
 
 use mavlink::error::MessageReadError;
 
 use mavlink::{self, MavConnection, MavlinkVersion, Message};
-use siyi_protocol::a8mini_udp::{
-    self, FirmwareVersionRequest, GimbalAttitudeRequest, GimbalRotationRequest, MAX_FRAME_SIZE,
-    MAX_MESSAGE_SIZE,
-};
+use siyi_protocol::a8mini_udp::{self, MAX_MESSAGE_SIZE};
 use std::error::Error;
-use std::future;
+
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 use std::thread::{self, sleep};
 use std::time::Duration;
 
-use tokio::runtime::Runtime;
 use zenoh::{self, Wait};
+
+use crate::state_generated::mavlink_fb::{
+    Int16Vec3, Int32Vec3, Quaternion, StateVector, StateVectorArgs,
+};
 
 mod gimbal_generated;
 mod state_generated;
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to initialize runtime");
     let cam_socket = std::net::UdpSocket::bind("192.168.144.25:37260")
         .expect("Failed to connect to A8 Mini's UDP socket");
 
@@ -41,8 +36,6 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // let mavlink_conn_str = "udpout:127.0.0.1:14560".to_string();
     // or even bidirectional UDP
     // let mavlink_conn_str = "udpin:0.0.0.0:14560".to_string();  // if Rust binds & waits
-    //
-    // println!("Compiled with TCP support? {}", cfg!(feature = "tcp"));
 
     let mavlink_conn_str =
         std::env::var("MAVLINK_CONN").unwrap_or_else(|_| "udpin:0.0.0.0:14551".to_string());
@@ -62,6 +55,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Setup publisher
     let state_pub = session.declare_publisher("control/out/state").wait()?;
 
+    // Setup gimbal subscriber
     let gimbal_sub = session
         .declare_subscriber("control/in/gimbal")
         .callback({
@@ -96,14 +90,19 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                         let mut buffer = [0u8; MAX_MESSAGE_SIZE];
 
-                        set_att.encode(&mut buffer);
-
+                        set_att
+                            .encode(&mut buffer)
+                            .expect("Failed to encode gimbal attitude command");
                         cam_sock
                             .send(&buffer)
-                            .expect("Failed to send attitude command");
+                            .expect("Failed to send gimbal attitude command");
 
-                        set_zoom.encode(&mut buffer);
-                        cam_sock.send(&buffer).expect("Failed to send zoom command");
+                        set_zoom
+                            .encode(&mut buffer)
+                            .expect("Failed to encode gimbal zoom command");
+                        cam_sock
+                            .send(&buffer)
+                            .expect("Failed to send gimbal zoom command");
                     }
                     Err(e) => eprintln!("Parse failed even after copy: {}", e),
                 }
@@ -153,21 +152,18 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 fn heartbeat_loop(vehicle: &Arc<Connection<MavMessage>>, running: &Arc<AtomicBool>) {
     let heartbeat_msg = MavMessage::HEARTBEAT(mavlink::ardupilotmega::HEARTBEAT_DATA {
         custom_mode: 0,
-        mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_GCS, // ← change to GCS (common for ground stations)
-        autopilot: mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_INVALID, // GCS doesn't have autopilot
+        mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_GCS,
+        autopilot: mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_INVALID,
         base_mode: MavModeFlag::empty(),
         system_status: mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE,
-        mavlink_version: 3, // usually 3 or 4
+        mavlink_version: 3,
     });
-    // println!("Heartbeat ENABLED!");
 
     while running.load(Ordering::Acquire) {
         if let Err(e) = vehicle.send_default(&heartbeat_msg) {
             eprintln!("Heartbeat send failed: {:?}", e);
         }
         sleep(Duration::from_secs(1));
-
-        // println!("Heartbeat.");
     }
 }
 
@@ -177,7 +173,6 @@ fn receiver_loop(
     running: &Arc<AtomicBool>,
 ) {
     while running.load(Ordering::Acquire) {
-        // println!("Receiver thread running!");
         match vehicle.recv() {
             Ok((header, msg)) => {
                 match msg {
@@ -229,23 +224,28 @@ fn publish_state(
     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Build FlatBuffer message
-    let mut builder = FlatBufferBuilder::new();
-
-    //Create the struct directly
-    let state = state_generated::mavlink_fb::StateVector::new(
-        data.time_usec,
-        &data.attitude_quaternion,
-        data.rollspeed,
-        data.pitchspeed,
-        data.yawspeed,
-        &[data.lat, data.lon, data.alt],
-        &[data.vx, data.vy, data.vz],
-        &[data.xacc, data.yacc, data.zacc],
-        data.ind_airspeed,
-        data.true_airspeed,
+    let mut builder = FlatBufferBuilder::with_capacity(1024);
+    let state = StateVector::create(
+        &mut builder,
+        &StateVectorArgs {
+            time_usec: data.time_usec,
+            quaternion: Some(&Quaternion::new(
+                data.attitude_quaternion[0],
+                data.attitude_quaternion[1],
+                data.attitude_quaternion[2],
+                data.attitude_quaternion[3],
+            )),
+            rollspeed: data.rollspeed,
+            pitchspeed: data.pitchspeed,
+            yawspeed: data.yawspeed,
+            pos: Some(&Int32Vec3::new(data.lat, data.lon, data.alt)),
+            vel: Some(&Int16Vec3::new(data.vx, data.vy, data.vz)),
+            acc: Some(&Int16Vec3::new(data.xacc, data.yacc, data.zacc)),
+            ind_airspeed: data.ind_airspeed,
+            true_airspeed: data.true_airspeed,
+        },
     );
-
-    builder.push(state);
+    builder.finish(state, None);
 
     // Get the serialized bytes
     let payload = builder.finished_data();

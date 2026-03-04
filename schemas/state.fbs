@@ -1,38 +1,61 @@
 namespace MavlinkFB;
 
-struct StateVector {
-  time_usec: uint64;
-  quaternion: [float32:4];
-  rollspeed: float;
-  pitchspeed: float;
-  yawspeed: float;
-
-  pos: [int32:3];
-  vel: [int16:3];
-  acc: [int16:3];
-
-
-  ind_airspeed: uint16;
-  true_airspeed: uint16;
+// ────────────────────────────────────────────────
+// Fixed-size vector types as structs (required!)
+struct FloatVec3 {
+    x: float;
+    y: float;
+    z: float;
 }
 
+struct Int32Vec3 {
+    x: int32;
+    y: int32;
+    z: int32;
+}
 
+struct Int16Vec3 {
+    x: int16;
+    y: int16;
+    z: int16;
+}
+
+struct Quaternion {
+    w: float32;
+    x: float32;
+    y: float32;
+    z: float32;
+}
+
+// ────────────────────────────────────────────────
+// Reusable attitude block (matches your struct)
 struct Attitude {
-    time_boot_ms: uint32;
-    roll: float32;
-    pitch: float32;
-    yaw: float32;
-    angular_velos: [float32:3];
+    time_boot_ms:   uint32;
+    roll:           float32;
+    pitch:          float32;
+    yaw:            float32;
+    angular_velos:  FloatVec3;     // was [float32:3]
 }
 
-struct GlobalPosition {
-    time_boot_ms: uint32;
-    lat: int32;
-    lon: int32;
-    alt: int32;
-    above_home_alt: int32;
-    velocites: [int16:3];
-    heading_yaw: uint16;
+
+
+// ────────────────────────────────────────────────
+// Main compact state vector for logging / telemetry / fusion
+table StateVector {
+    time_usec:          uint64;
+
+    quaternion:         Quaternion;
+
+    rollspeed:          float;
+    pitchspeed:         float;
+    yawspeed:           float;
+
+    pos:                Int32Vec3;
+    vel:                Int16Vec3;
+    acc:                Int16Vec3;
+
+    ind_airspeed:       uint16;
+    true_airspeed:      uint16;
 }
 
-// no root type
+root_type StateVector;
