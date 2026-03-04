@@ -224,7 +224,7 @@ fn publish_state(
     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Build FlatBuffer message
-    let mut builder = FlatBufferBuilder::with_capacity(1024);
+    let mut builder = FlatBufferBuilder::new();
     let state = StateVector::create(
         &mut builder,
         &StateVectorArgs {
@@ -248,7 +248,7 @@ fn publish_state(
     builder.finish(state, None);
 
     // Get the serialized bytes
-    let payload = builder.finished_data();
+    let payload = builder.finished_data().to_vec();
 
     println!("Published state!");
     dbg!(&data);
