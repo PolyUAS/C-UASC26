@@ -26,18 +26,26 @@ pub fn apply_command(sim: &mut DroneSim, payload: &[u8]) {
         }
     };
 
+    // Extract nested "target" object for coordinate fields.
+    // Supports both flat keys (target_lat_deg) and nested (target.lat_deg)
+    // so the sim works with both the injector script and future FlatBuf bridge.
+    let target = val.get("target").and_then(|v| v.as_object());
+
     match val.get("command_type").and_then(|v| v.as_str()) {
         Some("goto") => {
-            let lat = val
-                .get("target_lat_deg")
+            let lat = target
+                .and_then(|t| t.get("lat_deg"))
+                .or_else(|| val.get("target_lat_deg"))
                 .and_then(|v| v.as_f64())
                 .unwrap_or(sim.origin_lat());
-            let lon = val
-                .get("target_lon_deg")
+            let lon = target
+                .and_then(|t| t.get("lon_deg"))
+                .or_else(|| val.get("target_lon_deg"))
                 .and_then(|v| v.as_f64())
                 .unwrap_or(sim.origin_lon());
-            let alt = val
-                .get("target_alt_m")
+            let alt = target
+                .and_then(|t| t.get("alt_m"))
+                .or_else(|| val.get("target_alt_m"))
                 .and_then(|v| v.as_f64())
                 .unwrap_or(10.0);
             eprintln!("[mujoco-sim] GOTO lat={lat:.6} lon={lon:.6} alt={alt:.1}m");
@@ -62,8 +70,9 @@ pub fn apply_command(sim: &mut DroneSim, payload: &[u8]) {
             eprintln!("[mujoco-sim] ARM (no-op in sim)");
         }
         Some("takeoff") => {
-            let alt = val
-                .get("target_alt_m")
+            let alt = target
+                .and_then(|t| t.get("altitude_m").or_else(|| t.get("alt_m")))
+                .or_else(|| val.get("target_alt_m"))
                 .and_then(|v| v.as_f64())
                 .unwrap_or(10.0);
             eprintln!("[mujoco-sim] TAKEOFF to {alt:.1}m");

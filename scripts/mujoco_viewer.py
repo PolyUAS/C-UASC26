@@ -22,6 +22,7 @@ Requires: mujoco>=3.0, numpy, zenoh (install via `uv sync --group viewer`)
 from __future__ import annotations
 
 import argparse
+import ctypes.util
 import json
 import math
 import os
@@ -29,6 +30,68 @@ import sys
 import threading
 import time
 from pathlib import Path
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Native library bootstrap — must run BEFORE importing mujoco/glfw
+# ═══════════════════════════════════════════════════════════════════════════════
+# In a Nix environment, the Python `glfw` pip package can't find libglfw.so
+# because it's in the Nix store (not on LD_LIBRARY_PATH). The Nix-built
+# libglfw.so has RUNPATH entries to all its X11/GL deps, so we only need to
+# tell the Python glfw module where the native library is.
+
+def _bootstrap_native_libs():
+    """Auto-detect Nix GLFW native library and set PYGLFW_LIBRARY."""
+    import ctypes
+
+    # Already set (e.g. by justfile)? Just pre-load and return.
+    if os.environ.get("PYGLFW_LIBRARY") and os.path.exists(os.environ["PYGLFW_LIBRARY"]):
+        try:
+            ctypes.CDLL(os.environ["PYGLFW_LIBRARY"], mode=ctypes.RTLD_GLOBAL)
+        except OSError:
+            pass
+        return
+
+    # Strategy: ask nix-store for the Python glfw package's references
+    # to find the native Nix glfw (libglfw.so) package.
+    glfw_so = None
+
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("glfw")
+        if spec and spec.origin:
+            import subprocess
+            pkg_dir = str(Path(spec.origin).parent)
+            result = subprocess.run(
+                ["nix-store", "-q", "--references", pkg_dir],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.strip().splitlines():
+                candidate = os.path.join(line.strip(), "lib", "libglfw.so")
+                if os.path.exists(candidate):
+                    glfw_so = candidate
+                    break
+    except Exception:
+        pass
+
+    # Fallback: glob the nix store for a glfw package
+    if not glfw_so:
+        import glob
+        matches = glob.glob("/nix/store/*-glfw-*/lib/libglfw.so")
+        if matches:
+            glfw_so = matches[0]
+
+    if glfw_so:
+        os.environ["PYGLFW_LIBRARY"] = glfw_so
+        try:
+            ctypes.CDLL(glfw_so, mode=ctypes.RTLD_GLOBAL)
+        except OSError as e:
+            print(f"[mujoco_viewer] Warning: could not pre-load GLFW: {e}", file=sys.stderr)
+    else:
+        print("[mujoco_viewer] Warning: could not find Nix libglfw.so — GLFW init may fail", file=sys.stderr)
+        print("  Hint: set PYGLFW_LIBRARY=/path/to/libglfw.so", file=sys.stderr)
+
+
+_bootstrap_native_libs()
 
 import mujoco
 import mujoco.viewer

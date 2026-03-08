@@ -169,7 +169,7 @@ cmd-center-fast:
 cmd-center-inspect TOPIC:
     cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/cmd_center.py --inspect {{ TOPIC }}'
 
-# Launch MuJoCo 3D viewer (requires mujoco Python package)
+# Launch MuJoCo 3D viewer (requires mujoco Python package + X11 display)
 viewer-3d:
     cd guidance && nix develop -c bash --noprofile --norc -lc 'uv sync --group viewer && python ../scripts/mujoco_viewer.py'
 

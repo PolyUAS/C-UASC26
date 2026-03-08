@@ -376,9 +376,11 @@ class DataStore:
                     self.fsm_log.append(f"[{ts}] MODE {self._prev_mode} → {mode}")
                 self._prev_mode = mode
 
-            # Sim telemetry → also update telemetry gauge if no FC telemetry
-            if topic == "sim/mujoco/state" and decoded and self.telemetry is None:
-                self.telemetry = decoded
+            # Sim telemetry → update telemetry gauge continuously when no
+            # real FC telemetry is present (i.e. running in sim-only mode).
+            if topic == "sim/mujoco/state" and decoded:
+                if self.telemetry is None or self.telemetry.get("_format") != "flatbuf":
+                    self.telemetry = decoded
 
             # Supervisor
             if topic == "guidance/supervisor/signal" and decoded:
