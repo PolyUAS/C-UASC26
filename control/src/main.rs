@@ -90,19 +90,11 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                         let mut buffer = [0u8; MAX_MESSAGE_SIZE];
 
-                        set_att
-                            .encode(&mut buffer)
-                            .expect("Failed to encode gimbal attitude command");
-                        cam_sock
-                            .send(&buffer)
-                            .expect("Failed to send gimbal attitude command");
+                        set_att.encode(&mut buffer);
+                        cam_sock.send(&buffer);
 
-                        set_zoom
-                            .encode(&mut buffer)
-                            .expect("Failed to encode gimbal zoom command");
-                        cam_sock
-                            .send(&buffer)
-                            .expect("Failed to send gimbal zoom command");
+                        set_zoom.encode(&mut buffer);
+                        cam_sock.send(&buffer);
                     }
                     Err(e) => eprintln!("Parse failed even after copy: {}", e),
                 }
@@ -173,11 +165,11 @@ fn receiver_loop(
     running: &Arc<AtomicBool>,
 ) {
     while running.load(Ordering::Acquire) {
-        match vehicle.recv() {
+        match vehicle.try_recv() {
             Ok((header, msg)) => {
                 match msg {
                     MavMessage::HIL_STATE_QUATERNION(data) => {
-                        publish_state(state_pub, &data).expect("Failed to publish state: ");
+                        publish_state(state_pub, &data);
                     }
 
                     // MavMessage::GPS_RAW_INT(data) => {
