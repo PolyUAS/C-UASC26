@@ -154,3 +154,34 @@ inject-takeoff:
 # Inject a goto command with custom coordinates
 inject-goto-custom LAT LON ALT:
     cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/zenoh_inject_command.py goto --lat {{ LAT }} --lon {{ LON }} --alt {{ ALT }}'
+
+# --- Command Center & Viewers ---
+
+# Launch the full Command Center TUI dashboard (all 6 panels)
+cmd-center:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/cmd_center.py'
+
+# Command Center with faster refresh
+cmd-center-fast:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/cmd_center.py --refresh 0.3'
+
+# Command Center inspecting a specific topic
+cmd-center-inspect TOPIC:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'python ../scripts/cmd_center.py --inspect {{ TOPIC }}'
+
+# Launch MuJoCo 3D viewer (requires mujoco Python package)
+viewer-3d:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'uv sync --group viewer && python ../scripts/mujoco_viewer.py'
+
+# MuJoCo viewer with flight trail enabled
+viewer-3d-trail:
+    cd guidance && nix develop -c bash --noprofile --norc -lc 'uv sync --group viewer && python ../scripts/mujoco_viewer.py --trail'
+
+# Full sim experience: sim-stack + command center + viewer (use with tmux or separate terminals)
+full-sim-demo:
+    @echo "=== BROS Full Sim Demo ==="
+    @echo "Run these in separate terminals:"
+    @echo "  Terminal 1: just sim-run        # MuJoCo sim + navigation"
+    @echo "  Terminal 2: just cmd-center     # Command Center dashboard"
+    @echo "  Terminal 3: just viewer-3d      # MuJoCo 3D viewer"
+    @echo "  Terminal 4: just inject-sequence # Send test commands"

@@ -12,6 +12,10 @@ dependencies = [
 dev = [
   "pytest>=8.0",
 ]
+viewer = [
+  "mujoco>=3.0",
+  "numpy>=1.26",
+]
 
 # this defines the entrypoint of the python program.
 # we look in the package hello_world and find the function main (inside __init__.py)
