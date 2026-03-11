@@ -1,7 +1,9 @@
 use a8mini_camera_rs::A8Mini;
 use a8mini_camera_rs::control::A8MiniComplexCommand;
 use flatbuffers::{self, FlatBufferBuilder};
-use mavlink::ardupilotmega::{ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag};
+use mavlink::ardupilotmega::{
+    ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag, MavTunnelPayloadType,
+};
 use mavlink::{AsyncMavConnection, Connection};
 
 use mavlink::error::MessageReadError;
@@ -50,13 +52,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
     // Setup publisher
-    let state_pub = session.declare_publisher("control/out/vehicle").await?;
+    let state_pub = session.declare_publisher("control/out/vehicle").await.ok();
 
     let shared_camera = Arc::new(a8mini_camera);
     // Setup gimbal subscriber
     let gimbal_sub = session
         .declare_queryable("control/in/gimbal")
-        .callback(move |sample| gimbal_motion(sample, &shared_camera))
+        .callback(move |sample| {
+            let cam = shared_camera.clone();
+            tokio::spawn(async move {
+                gimbal_motion(sample, &cam).await;
+            });
+        })
         .await?;
 
     sleep(Duration::from_millis(500)); // Wait for subscribers
@@ -77,12 +84,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let running_recv = running.clone();
 
     let receiver_handle = tokio::spawn(async move {
-        receiver_loop(&vehicle_recv, &state_pub, &running_recv).await;
+        receiver_loop(
+            &vehicle_recv,
+            &state_pub
+                .expect("Can't initialize reciever thread: state_publisher failed to initialize"),
+            &running_recv,
+        )
+        .await;
     });
     // Initialize state stream
     initialize_state_stream(&vehicle, Duration::from_millis(20))
         .await
-        .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))?;
+        .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
+        .ok();
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
@@ -118,7 +132,24 @@ async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
         ))
         .await
     {
-        Ok(_) => {}
+        Ok(readback) => {
+            let yaw = i16::from_ne_bytes(readback[0..2].try_into().unwrap());
+            let pitch = i16::from_ne_bytes(readback[2..4].try_into().unwrap());
+            let roll = i16::from_ne_bytes(readback[4..6].try_into().unwrap());
+            let mut builder = FlatBufferBuilder::new();
+            let gimbal_state = gimbal_generated::gimbal::State::create(
+                &mut builder,
+                &gimbal_generated::gimbal::StateArgs {
+                    yaw: yaw as f32 / 10.0,
+                    pitch: pitch as f32 / 10.0,
+                    roll: roll as f32 / 10.0,
+                    zoom: -999.9,
+                },
+            );
+            builder.finish(gimbal_state, None);
+            let payload = builder.finished_data();
+            query.reply("control/out/gimbal", payload).await.ok();
+        }
         Err(_) => {}
     };
 }
@@ -152,7 +183,7 @@ async fn receiver_loop<'a>(
             Ok((header, msg)) => {
                 match msg {
                     MavMessage::HIL_STATE_QUATERNION(data) => {
-                        publish_state(state_pub, &data);
+                        publish_state(state_pub, &data).await.ok();
                     }
 
                     // MavMessage::GPS_RAW_INT(data) => {
