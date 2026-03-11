@@ -8,6 +8,7 @@ use mavlink::{self, MavConnection, MavlinkVersion, Message};
 use siyi_protocol::a8mini_udp::{self, MAX_MESSAGE_SIZE};
 use std::error::Error;
 
+use std::net::UdpSocket;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, sleep};
@@ -28,15 +29,6 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let cam_arc = Arc::new(cam_socket);
 
-    // Configuration
-    // Recommended – TCP (very reliable for localhost)
-    // let mavlink_conn_str = "tcp:127.0.0.1:5760".to_string();
-
-    // or UDP (if you started SITL with --out udp:...)
-    // let mavlink_conn_str = "udpout:127.0.0.1:14560".to_string();
-    // or even bidirectional UDP
-    // let mavlink_conn_str = "udpin:0.0.0.0:14560".to_string();  // if Rust binds & waits
-
     let mavlink_conn_str =
         std::env::var("MAVLINK_CONN").unwrap_or_else(|_| "udpin:0.0.0.0:14551".to_string());
 
@@ -53,53 +45,12 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
     // Setup publisher
-    let state_pub = session.declare_publisher("control/out/state").wait()?;
+    let state_pub = session.declare_publisher("control/out/vehicle").wait()?;
 
     // Setup gimbal subscriber
     let gimbal_sub = session
-        .declare_subscriber("control/in/gimbal")
-        .callback({
-            let cam_sock = cam_arc.clone();
-            move |sample| {
-                let bytes = sample.payload().to_bytes();
-                match gimbal_generated::gimbal::root_as_state(&bytes) {
-                    Ok(state) => {
-                        let mut set_att = a8mini_udp::SetGimbalAttitudeRequest::default();
-                        set_att.pitch = ((state.pitch() * 10.0).round() as i16).clamp(-1350, 1350);
-                        set_att.yaw = ((state.yaw() * 10.0).round() as i16).clamp(-900, 250);
-
-                        let mut set_zoom = a8mini_udp::AbsoluteZoomRequest::default();
-
-                        let zoom = state.zoom().clamp(1.0, 6.0); // A8 mini real limit
-                        let zoom_int = zoom.floor() as u8; // 1..6
-                        let zoom_frac =
-                            (((zoom - zoom_int as f32) * 10.0).round() as u8).clamp(0, 9);
-
-                        set_zoom.zoom_int = zoom_int;
-                        set_zoom.zoom_float = zoom_frac;
-
-                        println!(
-                            "Gimbal (fragmented): yaw={} pitch={}",
-                            state.yaw(),
-                            state.pitch()
-                        );
-                        println!(
-                            "Zoom (fragmented): int={}, float={}, overall: {}.{}",
-                            zoom_int, zoom_frac, zoom_int, zoom_frac
-                        );
-
-                        let mut buffer = [0u8; MAX_MESSAGE_SIZE];
-
-                        set_att.encode(&mut buffer);
-                        cam_sock.send(&buffer);
-
-                        set_zoom.encode(&mut buffer);
-                        cam_sock.send(&buffer);
-                    }
-                    Err(e) => eprintln!("Parse failed even after copy: {}", e),
-                }
-            }
-        })
+        .declare_queryable("control/in/gimbal")
+        .callback(move |sample| gimbal_motion(sample, cam_arc.clone()))
         .wait()?;
 
     sleep(Duration::from_millis(500)); // Wait for subscribers
@@ -139,6 +90,87 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .expect("Failed to close control's zenoh session:");
 
     Ok(())
+}
+
+fn gimbal_motion(query: zenoh::query::Query, cam_arc: Arc<UdpSocket>) {
+    let cam_sock = cam_arc.clone();
+
+    macro_rules! encode_and_send {
+        ($msg:expr, $buf:expr, $sock:expr) => {
+            match $msg.encode(&mut $buf) {
+                Ok(_) => {
+                    let _ = $sock.send(&$buf);
+                }
+                Err(e) => eprintln!("Encode error: {:?}", e),
+            }
+        };
+    }
+
+    let mut buffer = [0u8; MAX_MESSAGE_SIZE];
+    encode_and_send!(
+        &a8mini_udp::GimbalAttitudeRequest::default(),
+        buffer,
+        cam_sock
+    );
+
+    // Read the gimbal response
+    let mut recv_buf = [0u8; MAX_MESSAGE_SIZE];
+    let gimbal_state = match cam_sock.recv(&mut recv_buf) {
+        Ok(len) => match a8mini_udp::GimbalAttitudeResponse::decode(&recv_buf[..len]) {
+            Ok(attitude) => Some(attitude),
+            Err(e) => {
+                eprintln!("Failed to decode gimbal response: {:?}", e);
+                None
+            }
+        },
+        Err(e) => {
+            eprintln!("Failed to receive gimbal response: {e}");
+            None
+        }
+    };
+
+    if let Some(attitude) = gimbal_state {
+        let mut builder = FlatBufferBuilder::new();
+        let mut packet = gimbal_generated::gimbal::StateBuilder::new(&mut builder);
+        packet.add_pitch(attitude.pitch as f32 / 10.0);
+        packet.add_yaw(attitude.yaw as f32 / 10.0);
+        packet.add_roll(attitude.roll as f32 / 10.0);
+
+        let payload = packet.finish();
+        builder.finish(payload, None);
+        let buf = builder.finished_data();
+
+        let _ = query.reply("control/out/gimbal", buf).wait();
+        println!("Current gimbal attitude: {:?}", attitude);
+    }
+
+    let bytes = match query.payload() {
+        Some(b) => b.to_bytes().into_owned(),
+        None => Vec::<u8>::new(),
+    };
+
+    match gimbal_generated::gimbal::root_as_state(&bytes) {
+        Ok(state) => {
+            let mut set_att = a8mini_udp::SetGimbalAttitudeRequest::default();
+            set_att.pitch = ((state.pitch() * 10.0).round() as i16).clamp(-1350, 1350);
+            set_att.yaw = ((state.yaw() * 10.0).round() as i16).clamp(-900, 250);
+
+            let zoom = state.zoom().clamp(1.0, 6.0);
+            let zoom_int = zoom.floor() as u8;
+            let zoom_frac = (((zoom - zoom_int as f32) * 10.0).round() as u8).clamp(0, 9);
+
+            let mut set_zoom = a8mini_udp::AbsoluteZoomRequest::default();
+            set_zoom.zoom_int = zoom_int;
+            set_zoom.zoom_float = zoom_frac;
+
+            println!("Gimbal: yaw={} pitch={}", state.yaw(), state.pitch());
+            println!("Zoom: int={zoom_int}, float={zoom_frac}, overall: {zoom_int}.{zoom_frac}");
+
+            encode_and_send!(&set_att, buffer, cam_sock);
+            encode_and_send!(&set_zoom, buffer, cam_sock);
+        }
+        Err(e) => eprintln!("Parse failed: {e}"),
+    }
 }
 
 fn heartbeat_loop(vehicle: &Arc<Connection<MavMessage>>, running: &Arc<AtomicBool>) {
