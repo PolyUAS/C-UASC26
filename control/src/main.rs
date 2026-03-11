@@ -1,5 +1,5 @@
 use a8mini_camera_rs::A8Mini;
-use a8mini_camera_rs::control::A8MiniComplexCommand;
+use a8mini_camera_rs::control::{A8MiniComplexCommand, A8MiniSimpleCommand};
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::ardupilotmega::{
     ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag, MavTunnelPayloadType,
@@ -133,9 +133,9 @@ async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
         .await
     {
         Ok(readback) => {
-            let yaw = i16::from_ne_bytes(readback[0..2].try_into().unwrap());
-            let pitch = i16::from_ne_bytes(readback[2..4].try_into().unwrap());
-            let roll = i16::from_ne_bytes(readback[4..6].try_into().unwrap());
+            let yaw = i16::from_le_bytes(readback[0..2].try_into().unwrap());
+            let pitch = i16::from_le_bytes(readback[2..4].try_into().unwrap());
+            let roll = i16::from_le_bytes(readback[4..6].try_into().unwrap());
             let mut builder = FlatBufferBuilder::new();
             let gimbal_state = gimbal_generated::gimbal::State::create(
                 &mut builder,
