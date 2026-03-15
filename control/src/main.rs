@@ -79,14 +79,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Shutdown signal ptr
     let running = Arc::new(AtomicBool::new(true));
 
-    // Heartbeat thread
-    let vehicle_heartbeat = vehicle.clone();
-    let running_heartbeat = running.clone();
-
-    let heartbeat_handle = tokio::spawn(async move {
-        heartbeat_loop(&vehicle_heartbeat, &running_heartbeat).await;
-    });
-
     // Receiver task
     let vehicle_recv = vehicle.clone();
     let running_recv = running.clone();
@@ -100,11 +92,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         )
         .await;
     });
-    // Initialize state stream
-    initialize_state_stream(&vehicle, Duration::from_millis(20))
-        .await
-        .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
-        .ok();
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
@@ -114,9 +101,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Join threads
 
-    let tup = tokio::join!(heartbeat_handle, receiver_handle);
+    let tup = tokio::join!(receiver_handle);
     tup.0.ok();
-    tup.1.ok();
 
     session
         .close()
@@ -158,29 +144,10 @@ async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
             );
             builder.finish(gimbal_state, None);
             let payload = builder.finished_data();
-            query.reply("control/out/gimbal", payload).await.ok();
+            query.reply("control/telem/gimbal", payload).await.ok();
         }
         Err(_) => {}
     };
-}
-
-#[inline]
-async fn heartbeat_loop(vehicle: &SharedAsyncMavConn, running: &Arc<AtomicBool>) {
-    let heartbeat_msg = MavMessage::HEARTBEAT(mavlink::ardupilotmega::HEARTBEAT_DATA {
-        custom_mode: 0,
-        mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_GCS,
-        autopilot: mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_INVALID,
-        base_mode: MavModeFlag::empty(),
-        system_status: mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE,
-        mavlink_version: 3,
-    });
-
-    while running.load(Ordering::Acquire) {
-        if let Err(e) = vehicle.send_default(&heartbeat_msg).await {
-            eprintln!("Heartbeat send failed: {:?}", e);
-        }
-        sleep(Duration::from_secs(1)).await;
-    }
 }
 
 async fn receiver_loop<'a>(
@@ -192,10 +159,21 @@ async fn receiver_loop<'a>(
         match vehicle.recv().await {
             Ok((header, msg)) => {
                 match msg {
-                    MavMessage::HIL_STATE_QUATERNION(data) => {
-                        publish_state(state_pub, &data).await.ok();
-                    }
-
+                    MavMessage::GLOBAL_POSITION_INT(data) => {}
+                    MavMessage::ATTITUDE(data) => {}
+                    MavMessage::BATTERY_STATUS(data) => {}
+                    MavMessage::POWER_STATUS(data) => {}
+                    MavMessage::SYS_STATUS(data) => {}
+                    MavMessage::RC_CHANNELS(data) => {}
+                    MavMessage::MISSION_CURRENT(data) => {}
+                    MavMessage::SERVO_OUTPUT_RAW(data) => {}
+                    MavMessage::HEARTBEAT(data) => {}
+                    MavMessage::NAV_CONTROLLER_OUTPUT(data) => {}
+                    MavMessage::GPS_RAW_INT(data) => {}
+                    MavMessage::TERRAIN_REPORT(data) => {}
+                    MavMessage::AHRS(data) => {}
+                    MavMessage::AHRS2(data) => {}
+                    MavMessage::EKF_STATUS_REPORT(data) => {}
                     // MavMessage::GPS_RAW_INT(data) => {
                     //     dbg!(&data);
                     // }
@@ -270,48 +248,5 @@ async fn publish_state<'a>(
     dbg!(&data);
     // Publish
     publisher.put(payload).await?;
-    Ok(())
-}
-
-async fn initialize_state_stream(
-    vehicle: &SharedAsyncMavConn,
-    interval: Duration, // e.g., 20 ms → 50 Hz
-) -> Result<(), mavlink::error::MessageWriteError> {
-    let interval_us = interval.as_micros(); // microseconds
-
-    let cmd_msg = MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
-        target_system: 1,
-        target_component: 1,
-        command: MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
-        confirmation: 0,
-        param1: MavMessage::HIL_STATE_QUATERNION(HIL_STATE_QUATERNION_DATA::default()).message_id()
-            as f32,
-        param2: interval_us as f32, // interval in us (positive = start streaming)
-        param3: 0.0,
-        param4: 0.0,
-        param5: 0.0,
-        param6: 0.0,
-        param7: 0.0,
-    });
-
-    let mut attempts = 0;
-    loop {
-        match vehicle.send_default(&cmd_msg).await {
-            Ok(_) => {
-                println!(
-                    "Requested ALTITUDE at ~{} Hz (attempt {})",
-                    1000000 / interval_us,
-                    attempts + 1
-                );
-            }
-            Err(e) => eprintln!("SET_MESSAGE_INTERVAL failed: {:?}", e),
-        }
-        attempts += 1;
-        if attempts >= 10 {
-            eprintln!("Gave up after {} attempts", attempts);
-            break;
-        }
-        sleep(Duration::from_millis(500)).await; // retry slower to avoid spam
-    }
     Ok(())
 }
