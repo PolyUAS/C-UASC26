@@ -91,6 +91,7 @@
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
+            pkgs.htop
           ];
           env.ZENOH_CONFIG = sharedConfig;
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
