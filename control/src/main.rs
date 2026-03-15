@@ -1,23 +1,21 @@
 use a8mini_camera_rs::A8Mini;
-use a8mini_camera_rs::control::{A8MiniComplexCommand, A8MiniSimpleCommand};
+use a8mini_camera_rs::control::A8MiniComplexCommand;
 use flatbuffers::{self, FlatBufferBuilder};
-use mavlink::ardupilotmega::{
-    ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag, MavTunnelPayloadType,
-};
-use mavlink::{AsyncMavConnection, Connection};
+use mavlink::AsyncMavConnection;
+use mavlink::ardupilotmega::{ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag};
 
 use mavlink::error::MessageReadError;
 
-use mavlink::{self, MavConnection, MavlinkVersion, Message};
+use mavlink::{self, MavlinkVersion, Message};
+use tokio::join;
 use zenoh::query::Query;
 
 use std::error::Error;
 
-use std::net::UdpSocket;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::{self, sleep};
 use std::time::Duration;
+use tokio::time::sleep;
 
 use zenoh::{self};
 
@@ -28,15 +26,21 @@ use crate::state_generated::mavlink_fb::{
 mod gimbal_generated;
 mod state_generated;
 
-type MavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
-type SharedMavConn = Arc<MavConn>;
+type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
+type SharedAsyncMavConn = Arc<AsyncMavConn>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mavlink_conn_str =
         std::env::var("MAVLINK_CONN").unwrap_or_else(|_| "udpin:0.0.0.0:14551".to_string());
 
-    let a8mini_camera = a8mini_camera_rs::A8Mini::connect().await.unwrap();
+    let a8mini_camera = tokio::time::timeout(
+        Duration::from_millis(500),
+        a8mini_camera_rs::A8Mini::connect(),
+    )
+    .await
+    .map_err(|_| "Connection timed out after 500 ms")?
+    .map_err(|e| format!("Failed to connect to A8 Mini: {e}"))?;
 
     // Setup Zenoh
     let session =
@@ -47,7 +51,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await
         .expect("Failed to connect to MAVLink");
     mavconn.set_protocol_version(MavlinkVersion::V2);
-    let vehicle = Arc::new(mavconn);
+
+    let vehicle: SharedAsyncMavConn = Arc::new(mavconn);
 
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
@@ -66,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         })
         .await?;
 
-    sleep(Duration::from_millis(500)); // Wait for subscribers
+    sleep(Duration::from_millis(500)).await; // Wait for subscribers
 
     // Shutdown signal ptr
     let running = Arc::new(AtomicBool::new(true));
@@ -93,10 +98,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await;
     });
     // Initialize state stream
-    initialize_state_stream(&vehicle, Duration::from_millis(20))
-        .await
-        .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
-        .ok();
+    // initialize_state_stream(&vehicle, Duration::from_millis(20))
+    //     .await
+    //     .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
+    // .ok();
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
@@ -105,8 +110,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     .expect("Error setting Ctrl-C handler");
 
     // Join threads
-    heartbeat_handle.await.unwrap();
-    receiver_handle.await.unwrap();
+
+    let tup = tokio::join!(heartbeat_handle, receiver_handle);
+    tup.0.ok();
+    tup.1.ok();
 
     session
         .close()
@@ -155,7 +162,7 @@ async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
 }
 
 #[inline]
-async fn heartbeat_loop(vehicle: &SharedMavConn, running: &Arc<AtomicBool>) {
+async fn heartbeat_loop(vehicle: &SharedAsyncMavConn, running: &Arc<AtomicBool>) {
     let heartbeat_msg = MavMessage::HEARTBEAT(mavlink::ardupilotmega::HEARTBEAT_DATA {
         custom_mode: 0,
         mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_GCS,
@@ -169,12 +176,12 @@ async fn heartbeat_loop(vehicle: &SharedMavConn, running: &Arc<AtomicBool>) {
         if let Err(e) = vehicle.send_default(&heartbeat_msg).await {
             eprintln!("Heartbeat send failed: {:?}", e);
         }
-        sleep(Duration::from_secs(1));
+        sleep(Duration::from_secs(1)).await;
     }
 }
 
 async fn receiver_loop<'a>(
-    vehicle: &SharedMavConn,
+    vehicle: &SharedAsyncMavConn,
     state_pub: &zenoh::pubsub::Publisher<'a>,
     running: &Arc<AtomicBool>,
 ) {
@@ -215,7 +222,7 @@ async fn receiver_loop<'a>(
             }
 
             Err(MessageReadError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                sleep(Duration::from_micros(50));
+                sleep(Duration::from_micros(50)).await;
             }
             Err(e) => {
                 eprintln!("Control recv error: {:?}", e);
@@ -264,7 +271,7 @@ async fn publish_state<'a>(
 }
 
 async fn initialize_state_stream(
-    vehicle: &SharedMavConn,
+    vehicle: &SharedAsyncMavConn,
     interval: Duration, // e.g., 20 ms → 50 Hz
 ) -> Result<(), mavlink::error::MessageWriteError> {
     let interval_us = interval.as_micros(); // microseconds
@@ -300,7 +307,7 @@ async fn initialize_state_stream(
             eprintln!("Gave up after {} attempts", attempts);
             break;
         }
-        sleep(Duration::from_secs(2)); // retry slower to avoid spam
+        sleep(Duration::from_millis(500)).await; // retry slower to avoid spam
     }
     Ok(())
 }
