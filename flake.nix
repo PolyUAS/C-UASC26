@@ -78,10 +78,19 @@
 
           default = self'.packages.demo;
 
+          reset_jetson_network = pkgs.writeShellApplication {
+            name = "reset_jetson_network";
+            runtimeInputs = [
 
-          generateStubs = pkgs.writeShellScriptBin "generate-capnp-python-stubs" ''
-              uvx --python 3.14 capnp-stub-gen generate --no-runtime -o stubs/ $1
-          '';
+            ];
+            text = ''
+                sudo ip addr flush dev enP8p1s0
+                sudo ip addr add 192.168.144.30/24 dev enP8p1s0
+                sudo ip link set enP8p1s0 up
+            '';
+          };
+
+
         };
 
         devShells.default = pkgs.mkShell {
@@ -94,7 +103,7 @@
 
             self'.packages.vision
 
-            self'.packages.generateStubs
+            self'.packages.reset_jetson_network
 
             pkgs.just
             pkgs.uv

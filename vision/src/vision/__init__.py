@@ -19,7 +19,7 @@ for _ in range(30):
 
 while True:
     ret, frame = cap.read()
-    print("got cap!")
+    # print("got cap!")
 
     if not ret:
         print("Dropped frame")
