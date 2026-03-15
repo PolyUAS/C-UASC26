@@ -2,7 +2,9 @@ use a8mini_camera_rs::A8Mini;
 use a8mini_camera_rs::control::A8MiniComplexCommand;
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::AsyncMavConnection;
-use mavlink::ardupilotmega::{ALTITUDE_DATA, COMMAND_LONG_DATA, MavCmd, MavMessage, MavModeFlag};
+use mavlink::ardupilotmega::{
+    COMMAND_LONG_DATA, HIL_STATE_QUATERNION_DATA, MavCmd, MavMessage, MavModeFlag,
+};
 
 use mavlink::error::MessageReadError;
 
@@ -99,10 +101,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await;
     });
     // Initialize state stream
-    // initialize_state_stream(&vehicle, Duration::from_millis(20))
-    //     .await
-    //     .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
-    //     .ok();
+    initialize_state_stream(&vehicle, Duration::from_millis(20))
+        .await
+        .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
+        .ok();
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
@@ -282,7 +284,8 @@ async fn initialize_state_stream(
         target_component: 1,
         command: MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
         confirmation: 0,
-        param1: MavMessage::ALTITUDE(ALTITUDE_DATA::default()).message_id() as f32,
+        param1: MavMessage::HIL_STATE_QUATERNION(HIL_STATE_QUATERNION_DATA::default()).message_id()
+            as f32,
         param2: interval_us as f32, // interval in us (positive = start streaming)
         param3: 0.0,
         param4: 0.0,
