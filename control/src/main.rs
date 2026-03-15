@@ -14,6 +14,7 @@ use std::error::Error;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -51,8 +52,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await
         .expect("Failed to connect to MAVLink");
     mavconn.set_protocol_version(MavlinkVersion::V2);
-
-    let vehicle: SharedAsyncMavConn = Arc::new(mavconn);
+    mavconn.set_allow_recv_any_version(true);
+    let vehicle = Arc::new(mavconn);
 
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
@@ -101,7 +102,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // initialize_state_stream(&vehicle, Duration::from_millis(20))
     //     .await
     //     .inspect_err(|e| eprintln!("Failed to initialize state stream: {:?}", e))
-    // .ok();
+    //     .ok();
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
