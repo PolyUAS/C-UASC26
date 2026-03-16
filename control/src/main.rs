@@ -3,33 +3,31 @@ use a8mini_camera_rs::control::A8MiniComplexCommand;
 use a8mini_camera_rs::control::A8MiniSimpleCommand;
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::AsyncMavConnection;
-use mavlink::ardupilotmega::{
-    COMMAND_LONG_DATA, HIL_STATE_QUATERNION_DATA, MavCmd, MavMessage, MavModeFlag,
-};
+use mavlink::ardupilotmega::MavMessage;
 
 use mavlink::error::MessageReadError;
+use mavlink::{self, MavlinkVersion};
 
-use mavlink::{self, MavlinkVersion, Message};
-use tokio::join;
-use zenoh::query::Query;
 use zenoh::sample::Sample;
 
 use std::error::Error;
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use std::time::Duration;
+
 use tokio::time::sleep;
 
 use zenoh::{self};
 
-use crate::state_generated::mavlink_fb::{
-    Int16Vec3, Int32Vec3, Quaternion, StateVector, StateVectorArgs,
-};
+use crate::attitude_generated::attitude::AttitudePacket;
+use crate::attitude_generated::attitude::AttitudePacketArgs;
+use crate::position_generated::position::GlobalPositionInt;
+use crate::position_generated::position::GlobalPositionIntArgs;
 
+mod attitude_generated;
 mod gimbal_generated;
-mod state_generated;
+mod position_generated;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
@@ -62,7 +60,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
     // Setup publisher
-    let state_pub = session.declare_publisher("control/out/vehicle").await.ok();
+    let position_pub = session
+        .declare_publisher("control/telem/gl_pos_int")
+        .await?;
+    let attitude_pub = session.declare_publisher("control/telem/attitude").await?;
 
     let shared_camera = Arc::new(a8mini_camera);
 
@@ -97,13 +98,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let running_recv = running.clone();
 
     let receiver_handle = tokio::spawn(async move {
-        receiver_loop(
-            &vehicle_recv,
-            &state_pub
-                .expect("Can't initialize reciever thread: state_publisher failed to initialize"),
-            &running_recv,
-        )
-        .await;
+        receiver_loop(&vehicle_recv, &position_pub, &attitude_pub, &running_recv).await;
     });
 
     // Wait for Ctrl+C
@@ -134,7 +129,7 @@ async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
     let pitch = gimbal_packet.pitch();
     let yaw = gimbal_packet.yaw();
 
-    println!("Recieved Query! pitch: {pitch}, yaw: {yaw}");
+    // println!("Recieved Query! pitch: {pitch}, yaw: {yaw}");
 
     match cam
         .send_command(A8MiniComplexCommand::SetYawPitchAngle(
@@ -166,15 +161,51 @@ async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
 
 async fn receiver_loop<'a>(
     vehicle: &SharedAsyncMavConn,
-    state_pub: &zenoh::pubsub::Publisher<'a>,
+    position_pub: &zenoh::pubsub::Publisher<'a>,
+    attitude_pub: &zenoh::pubsub::Publisher<'a>,
     running: &Arc<AtomicBool>,
 ) {
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
             Ok((header, msg)) => {
                 match msg {
-                    MavMessage::GLOBAL_POSITION_INT(data) => {}
-                    MavMessage::ATTITUDE(data) => {}
+                    MavMessage::GLOBAL_POSITION_INT(data) => {
+                        let mut builder = FlatBufferBuilder::new();
+                        let root = GlobalPositionInt::create(
+                            &mut builder,
+                            &GlobalPositionIntArgs {
+                                lat: data.lat,
+                                lon: data.lon,
+                                alt: data.alt,
+                                alt_above_home: data.relative_alt,
+                                vx: data.vx,
+                                vy: data.vy,
+                                vz: data.vz,
+                                heading: data.hdg,
+                            },
+                        );
+                        builder.finish(root, None);
+                        let payload = builder.finished_data();
+                        position_pub.put(payload).await.ok();
+                    }
+                    MavMessage::ATTITUDE(data) => {
+                        let mut builder = FlatBufferBuilder::new();
+                        let root = AttitudePacket::create(
+                            &mut builder,
+                            &AttitudePacketArgs {
+                                roll: data.roll,
+                                pitch: data.pitch,
+                                yaw: data.yaw,
+                                vroll: data.rollspeed,
+                                vpitch: data.pitchspeed,
+                                vyaw: data.yawspeed,
+                            },
+                        );
+                        builder.finish(root, None);
+                        let payload = builder.finished_data();
+
+                        attitude_pub.put(payload).await;
+                    }
                     MavMessage::BATTERY_STATUS(data) => {}
                     MavMessage::POWER_STATUS(data) => {}
                     MavMessage::SYS_STATUS(data) => {}
@@ -226,41 +257,41 @@ async fn receiver_loop<'a>(
     }
 }
 
-#[inline]
-async fn publish_state<'a>(
-    publisher: &zenoh::pubsub::Publisher<'a>,
-    data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Build FlatBuffer message
-    let mut builder = FlatBufferBuilder::new();
-    let state = StateVector::create(
-        &mut builder,
-        &StateVectorArgs {
-            time_usec: data.time_usec,
-            quaternion: Some(&Quaternion::new(
-                data.attitude_quaternion[0],
-                data.attitude_quaternion[1],
-                data.attitude_quaternion[2],
-                data.attitude_quaternion[3],
-            )),
-            rollspeed: data.rollspeed,
-            pitchspeed: data.pitchspeed,
-            yawspeed: data.yawspeed,
-            pos: Some(&Int32Vec3::new(data.lat, data.lon, data.alt)),
-            vel: Some(&Int16Vec3::new(data.vx, data.vy, data.vz)),
-            acc: Some(&Int16Vec3::new(data.xacc, data.yacc, data.zacc)),
-            ind_airspeed: data.ind_airspeed,
-            true_airspeed: data.true_airspeed,
-        },
-    );
-    builder.finish(state, None);
+// #[inline]
+// async fn publish_state<'a>(
+//     publisher: &zenoh::pubsub::Publisher<'a>,
+//     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
+// ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+//     // Build FlatBuffer message
+//     let mut builder = FlatBufferBuilder::new();
+//     let state = StateVector::create(
+//         &mut builder,
+//         &StateVectorArgs {
+//             time_usec: data.time_usec,
+//             quaternion: Some(&Quaternion::new(
+//                 data.attitude_quaternion[0],
+//                 data.attitude_quaternion[1],
+//                 data.attitude_quaternion[2],
+//                 data.attitude_quaternion[3],
+//             )),
+//             rollspeed: data.rollspeed,
+//             pitchspeed: data.pitchspeed,
+//             yawspeed: data.yawspeed,
+//             pos: Some(&Int32Vec3::new(data.lat, data.lon, data.alt)),
+//             vel: Some(&Int16Vec3::new(data.vx, data.vy, data.vz)),
+//             acc: Some(&Int16Vec3::new(data.xacc, data.yacc, data.zacc)),
+//             ind_airspeed: data.ind_airspeed,
+//             true_airspeed: data.true_airspeed,
+//         },
+//     );
+//     builder.finish(state, None);
 
-    // Get the serialized bytes
-    let payload = builder.finished_data().to_vec();
+//     // Get the serialized bytes
+//     let payload = builder.finished_data().to_vec();
 
-    println!("Published state!");
-    dbg!(&data);
-    // Publish
-    publisher.put(payload).await?;
-    Ok(())
-}
+//     println!("Published state!");
+//     dbg!(&data);
+//     // Publish
+//     publisher.put(payload).await?;
+//     Ok(())
+// }

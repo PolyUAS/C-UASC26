@@ -1,0 +1,17 @@
+namespace Position;
+
+
+table GlobalPositionInt {
+    lat: int32; // degE7
+    lon: int32; // degE7
+    alt: int32; // mm above sea level
+    vx: int16; //cm/sec North
+    vy: int16; //cm/sec East
+    // NOTE TO CONTROL SYSTEMS DEVELOPERS: POSITIVE DOWN FROM MAVLINK
+    vz: int16; // cm/sec
+    heading: uint16; // degE2
+    alt_above_home: int32; // mm above home
+}
+
+
+root_type GlobalPositionInt;
