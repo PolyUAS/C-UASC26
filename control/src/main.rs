@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
 async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
     let bytes = sample.payload().to_bytes(); // &[u8]
-    let gimbal_packet = gimbal_generated::gimbal::root_as_state(&*bytes).unwrap();
+    let gimbal_packet = gimbal_generated::gimbal::root_as_state(bytes.as_ref()).unwrap();
 
     let cam = shared_camera.clone();
 

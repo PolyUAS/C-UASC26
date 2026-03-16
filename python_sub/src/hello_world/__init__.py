@@ -17,7 +17,7 @@ def main():
 
     # pub = session.declare_publisher("control/in/gimbal")
 
-    pub = session.declare_querier("control/in/gimbal")
+    pub = session.declare_publisher("control/in/gimbal")
 
     # Wait for subscribers to be ready
     sleep(0.5)
@@ -44,7 +44,7 @@ def main():
 
         # Get bytes and publish
         buf = builder.Output()
-        pub.get(payload=buf)
+        pub.put(buf)
 
         print(f"Published yaw = {i / 10.0:>6.1f}°")
         sleep(0.3)  # adjust delay — smaller = faster sweep, larger = easier to observe
