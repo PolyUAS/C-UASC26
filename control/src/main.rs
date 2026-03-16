@@ -126,9 +126,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 }
 
 async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
-    let payload = sample.payload();
-    let gimbal_packet =
-        gimbal_generated::gimbal::root_as_state(&payload.to_bytes().into_owned()).unwrap();
+    let bytes = sample.payload().to_bytes(); // &[u8]
+    let gimbal_packet = gimbal_generated::gimbal::root_as_state(&*bytes).unwrap();
 
     let cam = shared_camera.clone();
 
@@ -145,21 +144,21 @@ async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
         .await
     {
         Ok(readback) => {
-            let yaw = i16::from_le_bytes(readback[0..2].try_into().unwrap());
-            let pitch = i16::from_le_bytes(readback[2..4].try_into().unwrap());
-            let roll = i16::from_le_bytes(readback[4..6].try_into().unwrap());
-            let mut builder = FlatBufferBuilder::new();
-            let gimbal_state = gimbal_generated::gimbal::State::create(
-                &mut builder,
-                &gimbal_generated::gimbal::StateArgs {
-                    yaw: yaw as f32 / 10.0,
-                    pitch: pitch as f32 / 10.0,
-                    roll: roll as f32 / 10.0,
-                    zoom: -999.9,
-                },
-            );
-            builder.finish(gimbal_state, None);
-            let payload = builder.finished_data();
+            // let yaw = i16::from_le_bytes(readback[0..2].try_into().unwrap());
+            // let pitch = i16::from_le_bytes(readback[2..4].try_into().unwrap());
+            // let roll = i16::from_le_bytes(readback[4..6].try_into().unwrap());
+            // let mut builder = FlatBufferBuilder::new();
+            // let gimbal_state = gimbal_generated::gimbal::State::create(
+            //     &mut builder,
+            //     &gimbal_generated::gimbal::StateArgs {
+            //         yaw: yaw as f32 / 10.0,
+            //         pitch: pitch as f32 / 10.0,
+            //         roll: roll as f32 / 10.0,
+            //         zoom: -999.9,
+            //     },
+            // );
+            // builder.finish(gimbal_state, None);
+            // let payload = builder.finished_data();
         }
         Err(_) => {}
     };
