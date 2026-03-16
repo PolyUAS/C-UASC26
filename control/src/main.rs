@@ -12,6 +12,7 @@ use mavlink::error::MessageReadError;
 use mavlink::{self, MavlinkVersion, Message};
 use tokio::join;
 use zenoh::query::Query;
+use zenoh::sample::Sample;
 
 use std::error::Error;
 
@@ -70,12 +71,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await
     {
         Ok(..) => {}
-        Err(e) => {println!("Failed to autocenter gimbal: {e}")}
+        Err(e) => {
+            println!("Failed to autocenter gimbal: {e}")
+        }
     };
 
     // Setup gimbal subscriber
     let gimbal_sub = session
-        .declare_queryable("control/in/gimbal")
+        .declare_subscriber("control/in/gimbal")
         .callback(move |sample| {
             let cam = shared_camera.clone();
             tokio::spawn(async move {
@@ -122,9 +125,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
-    let payload = query.payload().unwrap().to_bytes().into_owned();
-    let gimbal_packet = gimbal_generated::gimbal::root_as_state(payload.as_slice()).unwrap();
+async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
+    let payload = sample.payload();
+    let gimbal_packet =
+        gimbal_generated::gimbal::root_as_state(&payload.to_bytes().into_owned()).unwrap();
 
     let cam = shared_camera.clone();
 
@@ -156,7 +160,6 @@ async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
             );
             builder.finish(gimbal_state, None);
             let payload = builder.finished_data();
-            query.reply("control/telem/gimbal", payload).await.ok();
         }
         Err(_) => {}
     };
