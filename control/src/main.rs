@@ -1,5 +1,6 @@
 use a8mini_camera_rs::A8Mini;
 use a8mini_camera_rs::control::A8MiniComplexCommand;
+use a8mini_camera_rs::control::A8MiniSimpleCommand;
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::AsyncMavConnection;
 use mavlink::ardupilotmega::{
@@ -63,6 +64,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let state_pub = session.declare_publisher("control/out/vehicle").await.ok();
 
     let shared_camera = Arc::new(a8mini_camera);
+
+    match shared_camera
+        .send_command(A8MiniSimpleCommand::AutoCenter)
+        .await
+    {
+        Ok(..) => {}
+        Err(e) => {println!("Failed to autocenter gimbal: {e}")}
+    };
+
     // Setup gimbal subscriber
     let gimbal_sub = session
         .declare_queryable("control/in/gimbal")
@@ -121,10 +131,12 @@ async fn gimbal_motion(query: Query, shared_camera: &Arc<A8Mini>) {
     let pitch = gimbal_packet.pitch();
     let yaw = gimbal_packet.yaw();
 
+    println!("Recieved Query! pitch: {pitch}, yaw: {yaw}");
+
     match cam
         .send_command(A8MiniComplexCommand::SetYawPitchAngle(
-            pitch.clamp(-90.0, 25.0) as i16,
-            yaw.clamp(-135.0, 135.0) as i16,
+            (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
+            (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
         ))
         .await
     {
@@ -193,11 +205,11 @@ async fn receiver_loop<'a>(
                         //     "Header ==== Component Id: {}, System Id : {}, Sequence Number: {}",
                         //     header.component_id, header.system_id, header.sequence
                         // );
-                        println!(
-                            "Message ==== Name: {}, Id: {}, ",
-                            msg.message_name(),
-                            msg.message_id()
-                        );
+                        // println!(
+                        //     "Message ==== Name: {}, Id: {}, ",
+                        //     msg.message_name(),
+                        //     msg.message_id()
+                        // );
                     }
                 }
             }
