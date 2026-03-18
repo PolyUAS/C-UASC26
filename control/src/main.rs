@@ -1,11 +1,7 @@
-use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::AsyncMavConnection;
 
-use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::MavMessage;
-
-use tokio::sync::broadcast::Receiver;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -16,17 +12,13 @@ use tokio::time::sleep;
 
 use zenoh::{self};
 
-use crate::attitude_generated::attitude::AttitudePacket;
-use crate::attitude_generated::attitude::AttitudePacketArgs;
-
-use crate::position_generated::position::GlobalPositionInt;
-use crate::position_generated::position::GlobalPositionIntArgs;
-
 mod generated;
 mod gimbal;
+mod telemetry;
 
 use gimbal::create_gimbal_subscriber;
 use gimbal::spawn_gimbal_task;
+use telemetry::telemetry_loop;
 
 use generated::attitude_generated;
 use generated::geofence_generated;
@@ -132,89 +124,4 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .expect("Failed to close control's zenoh session:");
 
     Ok(())
-}
-
-async fn telemetry_loop<'a>(
-    vehicle: &mut Receiver<(MavHeader, MavMessage)>,
-    position_pub: &zenoh::pubsub::Publisher<'a>,
-    attitude_pub: &zenoh::pubsub::Publisher<'a>,
-    running: &Arc<AtomicBool>,
-) {
-    while running.load(Ordering::Acquire) {
-        match vehicle.recv().await {
-            Ok((_header, msg)) => {
-                match msg {
-                    MavMessage::GLOBAL_POSITION_INT(data) => {
-                        let mut builder = FlatBufferBuilder::new();
-                        let root = GlobalPositionInt::create(
-                            &mut builder,
-                            &GlobalPositionIntArgs {
-                                lat: data.lat,
-                                lon: data.lon,
-                                alt: data.alt,
-                                alt_above_home: data.relative_alt,
-                                vx: data.vx,
-                                vy: data.vy,
-                                vz: data.vz,
-                                heading: data.hdg,
-                            },
-                        );
-                        builder.finish(root, None);
-                        let payload = builder.finished_data();
-                        position_pub.put(payload).await.ok();
-                    }
-                    MavMessage::ATTITUDE(data) => {
-                        let mut builder = FlatBufferBuilder::new();
-                        let root = AttitudePacket::create(
-                            &mut builder,
-                            &AttitudePacketArgs {
-                                roll: data.roll,
-                                pitch: data.pitch,
-                                yaw: data.yaw,
-                                vroll: data.rollspeed,
-                                vpitch: data.pitchspeed,
-                                vyaw: data.yawspeed,
-                            },
-                        );
-                        builder.finish(root, None);
-                        let payload = builder.finished_data();
-
-                        attitude_pub.put(payload).await.ok();
-                    }
-                    MavMessage::BATTERY_STATUS(data) => {}
-                    MavMessage::POWER_STATUS(data) => {}
-                    MavMessage::SYS_STATUS(data) => {}
-                    MavMessage::RC_CHANNELS(data) => {}
-                    MavMessage::MISSION_CURRENT(data) => {}
-                    MavMessage::SERVO_OUTPUT_RAW(data) => {}
-                    MavMessage::HEARTBEAT(data) => {}
-                    MavMessage::NAV_CONTROLLER_OUTPUT(data) => {}
-                    MavMessage::GPS_RAW_INT(data) => {}
-                    MavMessage::TERRAIN_REPORT(data) => {}
-                    MavMessage::AHRS(data) => {}
-                    MavMessage::AHRS2(data) => {}
-                    MavMessage::EKF_STATUS_REPORT(data) => {}
-                    _ => {
-                        // Ignore other messages
-                        // println!(
-                        //     "Header ==== Component Id: {}, System Id : {}, Sequence Number: {}",
-                        //     header.component_id, header.system_id, header.sequence
-                        // );
-                        // println!(
-                        //     "Message ==== Name: {}, Id: {}, ",
-                        //     msg.message_name(),
-                        //     msg.message_id()
-                        // );
-                    }
-                }
-            }
-
-            Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                eprintln!("telemetry subscriber lagged, dropped {n} messages");
-            }
-            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                break; // sender dropped, shut down
-            }
-        }
-    }
 }
