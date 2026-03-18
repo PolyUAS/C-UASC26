@@ -23,6 +23,7 @@ pub async fn telemetry_loop<'a>(
     attitude_pub: &zenoh::pubsub::Publisher<'a>,
     running: &Arc<AtomicBool>,
 ) {
+    let mut builder = FlatBufferBuilder::new();
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
             Ok((_header, msg)) => {
@@ -30,7 +31,6 @@ pub async fn telemetry_loop<'a>(
                     MavMessage::AHRS(data) => {}
                     MavMessage::AHRS2(data) => {}
                     MavMessage::ATTITUDE(data) => {
-                        let mut builder = FlatBufferBuilder::new();
                         let root = AttitudePacket::create(
                             &mut builder,
                             &AttitudePacketArgs {
@@ -50,7 +50,6 @@ pub async fn telemetry_loop<'a>(
                     MavMessage::BATTERY_STATUS(data) => {}
                     MavMessage::EKF_STATUS_REPORT(data) => {}
                     MavMessage::GLOBAL_POSITION_INT(data) => {
-                        let mut builder = FlatBufferBuilder::new();
                         let root = GlobalPositionInt::create(
                             &mut builder,
                             &GlobalPositionIntArgs {
@@ -108,5 +107,6 @@ pub async fn telemetry_loop<'a>(
                 break; // sender dropped, shut down
             }
         }
+        builder.reset();
     }
 }

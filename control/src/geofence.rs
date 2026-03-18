@@ -53,9 +53,8 @@ pub async fn get_geofence(
     while start.elapsed() < timeout {
         if let Ok((_, msg)) = bc_rx.recv().await {
             if let MavMessage::PARAM_VALUE(pv) = msg {
-                if pv.param_id == CharArray::new(b"FENCE_TOTAL\0\0\0\0\0".to_owned()) {
-                    // null-padded comparison
-                    total_points = pv.param_value as u8; // or as u32 then check range
+                if pv.param_id[..=11] == *b"FENCE_TOTAL" {
+                    total_points = pv.param_value as u8;
                     break;
                 }
             }
@@ -70,8 +69,7 @@ pub async fn get_geofence(
     // 2. Fetch each point — indices usually 0 = return point, 1..total = boundary
     let mut points = Vec::with_capacity(total_points as usize + 1);
 
-    for idx in 0..=total_points {
-        // include return point
+    for idx in 0..total_points {
         vehicle
             .send_default(&MavMessage::FENCE_FETCH_POINT(FENCE_FETCH_POINT_DATA {
                 target_system: 1,
