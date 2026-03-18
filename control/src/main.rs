@@ -25,10 +25,12 @@ use crate::attitude_generated::attitude::AttitudePacketArgs;
 use crate::position_generated::position::GlobalPositionInt;
 use crate::position_generated::position::GlobalPositionIntArgs;
 
-mod attitude_generated;
-mod geofence_generated;
-mod gimbal_generated;
-mod position_generated;
+mod generated;
+
+use generated::attitude_generated;
+use generated::geofence_generated;
+use generated::gimbal_generated;
+use generated::position_generated;
 
 mod geofence;
 
