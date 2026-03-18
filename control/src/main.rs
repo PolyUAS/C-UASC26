@@ -1,19 +1,18 @@
 use a8mini_camera_rs::A8Mini;
 use a8mini_camera_rs::control::A8MiniComplexCommand;
-use a8mini_camera_rs::control::A8MiniSimpleCommand;
+
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::AsyncMavConnection;
+
+use mavlink::MavHeader;
+use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::MavMessage;
 
-use mavlink::error::MessageReadError;
-use mavlink::{self, MavlinkVersion};
-
-use zenoh::sample::Sample;
+use tokio::sync::broadcast::Receiver;
 
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-
 use std::time::Duration;
 
 use tokio::time::sleep;
@@ -22,12 +21,18 @@ use zenoh::{self};
 
 use crate::attitude_generated::attitude::AttitudePacket;
 use crate::attitude_generated::attitude::AttitudePacketArgs;
+
 use crate::position_generated::position::GlobalPositionInt;
 use crate::position_generated::position::GlobalPositionIntArgs;
 
 mod attitude_generated;
+mod geofence_generated;
 mod gimbal_generated;
 mod position_generated;
+
+mod geofence;
+
+use geofence::create_geofence_queryable;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
@@ -57,49 +62,65 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     mavconn.set_allow_recv_any_version(true);
     let vehicle = Arc::new(mavconn);
 
+    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(128);
+    // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
+    // Each subsystem takes bc_tx.subscribe()
+    //
+
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
     // Setup publisher
     let position_pub = session
         .declare_publisher("control/telem/gl_pos_int")
         .await?;
+
     let attitude_pub = session.declare_publisher("control/telem/attitude").await?;
 
     let shared_camera = Arc::new(a8mini_camera);
 
-    match shared_camera
-        .send_command(A8MiniSimpleCommand::AutoCenter)
-        .await
-    {
-        Ok(..) => {}
-        Err(e) => {
-            println!("Failed to autocenter gimbal: {e}")
-        }
-    };
-
+    let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32));
     // Setup gimbal subscriber
-    let gimbal_sub = session
+    let _gimbal_sub = session
         .declare_subscriber("control/in/gimbal")
         .callback(move |sample| {
-            let cam = shared_camera.clone();
-            tokio::spawn(async move {
-                gimbal_motion(sample, &cam).await;
-            });
+            let bytes = sample.payload().to_bytes(); // &[u8]
+            let gimbal_packet = gimbal_generated::gimbal::root_as_state(bytes.as_ref()).unwrap();
+
+            let pitch = gimbal_packet.pitch();
+            let yaw = gimbal_packet.yaw();
+            gimbal_tx.send((yaw, pitch)).ok();
         })
         .await?;
+
+    // In a dedicated task:
+    spawn_gimbal_task(shared_camera.clone(), gimbal_rx);
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
 
     // Shutdown signal ptr
     let running = Arc::new(AtomicBool::new(true));
 
+    let active = running.clone();
+    let rx_bc_rx = bc_tx.clone();
+    let reciever_clone = vehicle.clone();
     // Receiver task
-    let vehicle_recv = vehicle.clone();
-    let running_recv = running.clone();
-
-    let receiver_handle = tokio::spawn(async move {
-        receiver_loop(&vehicle_recv, &position_pub, &attitude_pub, &running_recv).await;
+    tokio::spawn(async move {
+        while active.load(Ordering::Acquire) {
+            if let Some(msg_tuple) = reciever_clone.recv().await.ok() {
+                rx_bc_rx.send(msg_tuple).ok();
+            }
+        }
     });
+
+    let running_telem = running.clone();
+
+    let mut telem_rx = bc_tx.subscribe();
+    let telem_handle = tokio::spawn(async move {
+        telemetry_loop(&mut telem_rx, &position_pub, &attitude_pub, &running_telem).await;
+    });
+
+    let geofence_vehicle = vehicle.clone();
+    let _geofence_query = create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone());
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
@@ -109,7 +130,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Join threads
 
-    let tup = tokio::join!(receiver_handle);
+    let tup = tokio::join!(telem_handle);
     tup.0.ok();
 
     session
@@ -120,54 +141,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-async fn gimbal_motion(sample: Sample, shared_camera: &Arc<A8Mini>) {
-    let bytes = sample.payload().to_bytes(); // &[u8]
-    let gimbal_packet = gimbal_generated::gimbal::root_as_state(bytes.as_ref()).unwrap();
-
-    let cam = shared_camera.clone();
-
-    let pitch = gimbal_packet.pitch();
-    let yaw = gimbal_packet.yaw();
-
-    // println!("Recieved Query! pitch: {pitch}, yaw: {yaw}");
-
-    match cam
-        .send_command(A8MiniComplexCommand::SetYawPitchAngle(
-            (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
-            (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
-        ))
-        .await
-    {
-        Ok(readback) => {
-            // let yaw = i16::from_le_bytes(readback[0..2].try_into().unwrap());
-            // let pitch = i16::from_le_bytes(readback[2..4].try_into().unwrap());
-            // let roll = i16::from_le_bytes(readback[4..6].try_into().unwrap());
-            // let mut builder = FlatBufferBuilder::new();
-            // let gimbal_state = gimbal_generated::gimbal::State::create(
-            //     &mut builder,
-            //     &gimbal_generated::gimbal::StateArgs {
-            //         yaw: yaw as f32 / 10.0,
-            //         pitch: pitch as f32 / 10.0,
-            //         roll: roll as f32 / 10.0,
-            //         zoom: -999.9,
-            //     },
-            // );
-            // builder.finish(gimbal_state, None);
-            // let payload = builder.finished_data();
-        }
-        Err(_) => {}
-    };
-}
-
-async fn receiver_loop<'a>(
-    vehicle: &SharedAsyncMavConn,
+async fn telemetry_loop<'a>(
+    vehicle: &mut Receiver<(MavHeader, MavMessage)>,
     position_pub: &zenoh::pubsub::Publisher<'a>,
     attitude_pub: &zenoh::pubsub::Publisher<'a>,
     running: &Arc<AtomicBool>,
 ) {
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
-            Ok((header, msg)) => {
+            Ok((_header, msg)) => {
                 match msg {
                     MavMessage::GLOBAL_POSITION_INT(data) => {
                         let mut builder = FlatBufferBuilder::new();
@@ -204,7 +186,7 @@ async fn receiver_loop<'a>(
                         builder.finish(root, None);
                         let payload = builder.finished_data();
 
-                        attitude_pub.put(payload).await;
+                        attitude_pub.put(payload).await.ok();
                     }
                     MavMessage::BATTERY_STATUS(data) => {}
                     MavMessage::POWER_STATUS(data) => {}
@@ -219,19 +201,6 @@ async fn receiver_loop<'a>(
                     MavMessage::AHRS(data) => {}
                     MavMessage::AHRS2(data) => {}
                     MavMessage::EKF_STATUS_REPORT(data) => {}
-                    // MavMessage::GPS_RAW_INT(data) => {
-                    //     dbg!(&data);
-                    // }
-                    // MavMessage::GLOBAL_POSITION_INT(data) => {
-                    //     println!("lat: {}, lon: {}, alt: {}", data.lat, data.lon, data.alt);
-                    // }
-
-                    // MavMessage::ATTITUDE(data) => {
-                    //     println!(
-                    //         "pitch: {}, roll: {}, yaw: {}",
-                    //         data.pitch, data.roll, data.yaw,
-                    //     );
-                    // }
                     _ => {
                         // Ignore other messages
                         // println!(
@@ -247,51 +216,30 @@ async fn receiver_loop<'a>(
                 }
             }
 
-            Err(MessageReadError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                sleep(Duration::from_micros(50)).await;
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                eprintln!("telemetry subscriber lagged, dropped {n} messages");
             }
-            Err(e) => {
-                eprintln!("Control recv error: {:?}", e);
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                break; // sender dropped, shut down
             }
         }
     }
 }
 
-// #[inline]
-// async fn publish_state<'a>(
-//     publisher: &zenoh::pubsub::Publisher<'a>,
-//     data: &mavlink::ardupilotmega::HIL_STATE_QUATERNION_DATA,
-// ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-//     // Build FlatBuffer message
-//     let mut builder = FlatBufferBuilder::new();
-//     let state = StateVector::create(
-//         &mut builder,
-//         &StateVectorArgs {
-//             time_usec: data.time_usec,
-//             quaternion: Some(&Quaternion::new(
-//                 data.attitude_quaternion[0],
-//                 data.attitude_quaternion[1],
-//                 data.attitude_quaternion[2],
-//                 data.attitude_quaternion[3],
-//             )),
-//             rollspeed: data.rollspeed,
-//             pitchspeed: data.pitchspeed,
-//             yawspeed: data.yawspeed,
-//             pos: Some(&Int32Vec3::new(data.lat, data.lon, data.alt)),
-//             vel: Some(&Int16Vec3::new(data.vx, data.vy, data.vz)),
-//             acc: Some(&Int16Vec3::new(data.xacc, data.yacc, data.zacc)),
-//             ind_airspeed: data.ind_airspeed,
-//             true_airspeed: data.true_airspeed,
-//         },
-//     );
-//     builder.finish(state, None);
-
-//     // Get the serialized bytes
-//     let payload = builder.finished_data().to_vec();
-
-//     println!("Published state!");
-//     dbg!(&data);
-//     // Publish
-//     publisher.put(payload).await?;
-//     Ok(())
-// }
+fn spawn_gimbal_task(
+    cam: Arc<A8Mini>,
+    mut gimbal_rx: tokio::sync::watch::Receiver<(f32, f32)>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            gimbal_rx.changed().await.ok();
+            let (yaw, pitch) = *gimbal_rx.borrow();
+            cam.send_command(A8MiniComplexCommand::SetYawPitchAngle(
+                (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
+                (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
+            ))
+            .await
+            .ok();
+        }
+    })
+}

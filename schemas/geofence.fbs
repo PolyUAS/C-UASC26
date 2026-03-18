@@ -1,0 +1,14 @@
+namespace Geofence;
+
+struct Coords {
+    lat: float32;
+    lon: float32;
+}
+
+table GeofencePacket {
+    points: [Coords];
+
+}
+
+
+root_type GeofencePacket;
