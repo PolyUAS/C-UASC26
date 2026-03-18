@@ -9,7 +9,7 @@ use mavlink::ardupilotmega::FENCE_POINT_DATA;
 use mavlink::ardupilotmega::MavMessage;
 
 use mavlink::types::CharArray;
-use mavlink::{self, MavlinkVersion};
+use mavlink::{self};
 
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::Sender;
@@ -18,7 +18,6 @@ use zenoh::Session;
 use zenoh::query::Queryable;
 
 use std::error::Error;
-use std::sync::Arc;
 
 use std::time::Duration;
 

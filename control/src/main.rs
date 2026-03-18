@@ -1,6 +1,3 @@
-use a8mini_camera_rs::A8Mini;
-use a8mini_camera_rs::control::A8MiniComplexCommand;
-
 use flatbuffers::{self, FlatBufferBuilder};
 use mavlink::AsyncMavConnection;
 
@@ -26,6 +23,10 @@ use crate::position_generated::position::GlobalPositionInt;
 use crate::position_generated::position::GlobalPositionIntArgs;
 
 mod generated;
+mod gimbal;
+
+use gimbal::create_gimbal_subscriber;
+use gimbal::spawn_gimbal_task;
 
 use generated::attitude_generated;
 use generated::geofence_generated;
@@ -82,17 +83,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32));
     // Setup gimbal subscriber
-    let _gimbal_sub = session
-        .declare_subscriber("control/in/gimbal")
-        .callback(move |sample| {
-            let bytes = sample.payload().to_bytes(); // &[u8]
-            let gimbal_packet = gimbal_generated::gimbal::root_as_state(bytes.as_ref()).unwrap();
-
-            let pitch = gimbal_packet.pitch();
-            let yaw = gimbal_packet.yaw();
-            gimbal_tx.send((yaw, pitch)).ok();
-        })
-        .await?;
+    let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
 
     // In a dedicated task:
     spawn_gimbal_task(shared_camera.clone(), gimbal_rx);
@@ -226,22 +217,4 @@ async fn telemetry_loop<'a>(
             }
         }
     }
-}
-
-fn spawn_gimbal_task(
-    cam: Arc<A8Mini>,
-    mut gimbal_rx: tokio::sync::watch::Receiver<(f32, f32)>,
-) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        loop {
-            gimbal_rx.changed().await.ok();
-            let (yaw, pitch) = *gimbal_rx.borrow();
-            cam.send_command(A8MiniComplexCommand::SetYawPitchAngle(
-                (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
-                (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
-            ))
-            .await
-            .ok();
-        }
-    })
 }
