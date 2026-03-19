@@ -41,8 +41,17 @@ def main():
                 if reply.ok:
                     sample = reply.ok
                     try:
-                        pkt = GeofencePacket.GeofencePacket.GetRootAs(sample.payload, 0)
-                        print("  Geofence reply received (size:", len(sample.payload), "bytes)")
+                        pkt: GeofencePacket.GeofencePacket = (
+                            GeofencePacket.GeofencePacket.GetRootAs(
+                                sample.payload.to_bytes(), 0
+                            )
+                        )
+                        print(
+                            "  Geofence reply received (size:",
+                            len(sample.payload.to_bytes()),
+                            "bytes)",
+                        )
+                        print(str(pkt))
                         # Add more printing / parsing if you know the schema
                     except Exception as e:
                         print("  Cannot parse geofence FlatBuffer:", e)
