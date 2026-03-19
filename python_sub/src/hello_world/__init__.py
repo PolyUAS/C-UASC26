@@ -1,10 +1,12 @@
 import os
 import sys
+from random import sample
 from time import sleep
 
 import flatbuffers
 import zenoh
 
+import hello_world.Geofence.GeofencePacket as GeofencePacket
 import hello_world.Gimbal as Gimbal
 import hello_world.Gimbal.State as State
 
@@ -23,6 +25,31 @@ def main():
     sleep(0.5)
 
     # Now publish
+    #
+    geofenceQ = session.declare_querier("control/query/geofence")
+
+    try:
+        geofence_q = session.declare_querier("control/query/geofence")
+        print("Querying current geofence...")
+
+        replies = geofence_q.get()  # synchronous get (waits for replies)
+
+        if not replies:
+            print("→ No replies received")
+        else:
+            for reply in replies:
+                if reply.ok:
+                    sample = reply.ok
+                    try:
+                        pkt = GeofencePacket.GeofencePacket.GetRootAs(sample.payload, 0)
+                        print("  Geofence reply received (size:", len(sample.payload), "bytes)")
+                        # Add more printing / parsing if you know the schema
+                    except Exception as e:
+                        print("  Cannot parse geofence FlatBuffer:", e)
+                else:
+                    print("  Query error:", reply.err)
+    except Exception as e:
+        print("Geofence query failed:", e)
 
     # inside the loop — or replace the loop with:
     # Sweep yaw from -135° to +135° in steps of 5° (for faster visible testing)
