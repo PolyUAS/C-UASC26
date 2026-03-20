@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from guidance.contracts import SupervisorAction, SupervisorSignal
-from guidance.missionFSM import MissionStateMachine
+from guidance.missionFSM import StateMachineBaseClass
 from guidance.missions import (
     CircuitTimeTrialFSM,
     PackageDeliveryFSM,
@@ -26,7 +25,7 @@ class MasterFlightController:
 
     def __init__(self):
         self.current_phase = self.FlightPhase.PRE_COMPETITION
-        self.active_mission: Optional[MissionStateMachine] = None
+        self.active_mission: Optional[StateMachineBaseClass] = None
         self.supervisor = MissionSupervisor()
         self.qualified = False
         self.flights_remaining = 4
@@ -51,7 +50,10 @@ class MasterFlightController:
         return True
 
     def tick(self, supervisor_signal: Optional[SupervisorSignal] = None):
-        if self.current_phase != self.FlightPhase.MISSION_ACTIVE or self.active_mission is None:
+        if (
+            self.current_phase != self.FlightPhase.MISSION_ACTIVE
+            or self.active_mission is None
+        ):
             return
 
         if supervisor_signal is not None:

@@ -1,0 +1,52 @@
+from enum import Enum
+
+from guidance.missionFSM import StateMachineBaseClass
+
+
+class PackageOpsMode(Enum):
+    DROP = "drop"
+    DELIVERY = "delivery"
+    RECOVERY = "recovery"
+
+
+class PackageOpsFSM(StateMachineBaseClass):
+    class State(Enum):
+        TARGET_ASSIGN = "target_assign"
+        APPROACH = "approach"
+        STABILIZE = "stabilize"
+        ACTUATE = "actuate"
+        VERIFY = "verify"
+        EGRESS = "egress"
+
+    def __init__(self, mode: PackageOpsMode):
+        super().__init__(f"Package Ops ({mode.value})", time_limit=600.0)
+        self.mode = mode
+        self.state = self.State.TARGET_ASSIGN
+
+    def execute_mission_logic(self):
+        return
+
+    def calculate_score(self) -> float:
+        return 0.0
+
+    def get_telemetry_requirements(self) -> dict:
+        return {
+            "gps_required": True,
+            "payload_status": True,
+            "camera_required": self.mode != PackageOpsMode.DROP,
+        }
+
+
+class PackageDropFSM(PackageOpsFSM):
+    def __init__(self):
+        super().__init__(PackageOpsMode.DROP)
+
+
+class PackageDeliveryFSM(PackageOpsFSM):
+    def __init__(self):
+        super().__init__(PackageOpsMode.DELIVERY)
+
+
+class PackageRecoveryFSM(PackageOpsFSM):
+    def __init__(self):
+        super().__init__(PackageOpsMode.RECOVERY)

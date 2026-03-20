@@ -1,9 +1,9 @@
 from enum import Enum
 
-from guidance.missionFSM import MissionStateMachine
+from guidance.missionFSM import StateMachineBaseClass
 
 
-class CircuitTimeTrialFSM(MissionStateMachine):
+class CircuitTimeTrialFSM(StateMachineBaseClass):
     class State(Enum):
         PLAN_CIRCUIT = "plan_circuit"
         TAKEOFF = "takeoff"
@@ -30,7 +30,7 @@ class CircuitTimeTrialFSM(MissionStateMachine):
         }
 
 
-class TargetLocalizationFSM(MissionStateMachine):
+class TargetLocalizationFSM(StateMachineBaseClass):
     class State(Enum):
         SEARCH_PATTERN = "search_pattern"
         DETECT = "detect"
@@ -63,7 +63,7 @@ class PackageOpsMode(Enum):
     RECOVERY = "recovery"
 
 
-class PackageOpsFSM(MissionStateMachine):
+class PackageOpsFSM(StateMachineBaseClass):
     class State(Enum):
         TARGET_ASSIGN = "target_assign"
         APPROACH = "approach"

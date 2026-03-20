@@ -13,10 +13,10 @@ import math
 from enum import Enum
 from typing import Any, Callable, Dict, List
 
-from guidance.missionFSM import MissionState, MissionStateMachine
+from guidance.missionFSM import MissionState, StateMachineBaseClass
 
 
-class WaypointNavigationFSM(MissionStateMachine):
+class WaypointNavigationFSM(StateMachineBaseClass):
     """Handles unordered waypoint navigation"""
 
     APPROACH_RADIUS = 15.0
@@ -56,7 +56,9 @@ class WaypointNavigationFSM(MissionStateMachine):
         # Performance tracking
         self.waypoint_errors: Dict[int, float] = {}  # Distance error at each WP
 
-        self._state_handlers: Dict[WaypointNavigationFSM.WaypointState, Callable[[], None]] = {
+        self._state_handlers: Dict[
+            WaypointNavigationFSM.WaypointState, Callable[[], None]
+        ] = {
             self.WaypointState.INITIALIZING: self._handle_initializing,
             self.WaypointState.ROUTE_PLANNING: self._handle_route_planning,
             self.WaypointState.TAKEOFF: self._handle_takeoff,
@@ -135,7 +137,7 @@ class WaypointNavigationFSM(MissionStateMachine):
         """
         TSP optimization for waypoint order
         Critical for performance - poor route = longer flight time
-        
+
         Options:
         1. Nearest neighbor (fast, ~90% optimal)
         2. 2-opt improvement (better, reasonable time)
@@ -144,25 +146,25 @@ class WaypointNavigationFSM(MissionStateMachine):
         # Implementation depends on performance requirements
         # For 7 waypoints, brute force is even feasible (7! = 5040 permutations)
         return list(range(len(waypoints)))
-    
+
     def calculate_score(self) -> float:
         """
         Score formula from rules:
         X = sqrt(sum of squared errors)
         Z = 10 - (X - M) / S
-        
+
         Note: This needs data from ALL teams to compute M and S
         Returns raw X value for judge scoring
         """
         if len(self.waypoint_errors) != len(self.waypoints):
             return 0.0  # Didn't complete all waypoints
-            
+
         squared_errors = sum(err**2 for err in self.waypoint_errors.values())
         return math.sqrt(squared_errors)
 
     @classmethod
     def telemetry_requirements(cls) -> Dict[str, bool]:
         return dict(cls.TELEMETRY_REQUIREMENTS)
-    
+
     def get_telemetry_requirements(self) -> dict:
         return self.telemetry_requirements()
