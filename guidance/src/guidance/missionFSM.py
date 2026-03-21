@@ -1,5 +1,4 @@
 from abc import ABC, ABCMeta
-from tkinter.constants import TOP
 
 from statemachine import State, StateMachine
 
