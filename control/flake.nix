@@ -9,6 +9,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"; # This should point to whichever nixpkgs rev you want.
     naersk.url = "github:nix-community/naersk/master";
 
+    rust-overlay.url = "github:oxalica/rust-overlay";
+
   };
 
   outputs = { flake-parts, ... } @ inputs: flake-parts.lib.mkFlake { inherit inputs; } {
@@ -18,6 +20,8 @@
     ];
 
     perSystem = { config, self', inputs', pkgs, system, ... }: {
+
+
 
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -33,7 +37,16 @@
 
       packages.default =
         let
-          naersk-lib = pkgs.callPackage inputs.naersk { };
+          pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [ inputs.rust-overlay.overlays.default ];
+          };
+
+          naersk-lib = pkgs.callPackage inputs.naersk {
+
+            cargo = pkgs.rust-bin.stable.latest.default;
+            rustc = pkgs.rust-bin.stable.latest.default;
+          };
         in
         naersk-lib.buildPackage {
           src = ./.;
