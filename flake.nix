@@ -2,19 +2,20 @@
   description = "Master Zenoh monorepo";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    rust-demo-sub.url = "./rust_sub";
-    python-demo-sub.url = "./python_sub";
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
+    flake-parts.url = github:hercules-ci/flake-parts;
+    rust-demo-sub.url = ./rust_sub;
+    python-demo-sub.url = ./python_sub;
 
+    zenohd.url = ./zenohd;
 
-    vision.url = "./vision";
+    vision.url = ./vision;
 
-    control.url = "./control";
-    guidance.url = "./guidance";
-    navigation.url = "./navigation";
+    control.url = ./control;
+    guidance.url = ./guidance;
+    navigation.url = ./navigation;
 
-    mujoco-sim.url = "./mujoco-sim";
+    mujoco-sim.url = ./mujoco-sim;
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -60,6 +61,9 @@
           vision = inputs.vision.packages.${system}.default;
 
           control = inputs.control.packages.${system}.default;
+
+          zenohd = inputs.zenohd.packages.${system}.default;
+
 
           # Flight stack modules
           guidance   = inputs.guidance.packages.${system}.default;
@@ -123,7 +127,9 @@
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
+            self'.packages.zenohd
             pkgs.htop
+
           ];
           env.ZENOH_CONFIG = sharedConfig;
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
