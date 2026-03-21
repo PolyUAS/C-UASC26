@@ -1,20 +1,15 @@
 from enum import Enum
 
-from guidance.missionFSM import StateMachineBaseClass
+from statemachine import State
+
+from guidance.missionFSM import AbstractFSMBaseClass
 
 
-class CircuitTimeTrialFSM(StateMachineBaseClass):
-    class State(Enum):
-        PLAN_CIRCUIT = "plan_circuit"
-        TAKEOFF = "takeoff"
-        ACQUIRE_GATE = "acquire_gate"
-        LAP_EXECUTION = "lap_execution"
-        LAP_VALIDATION = "lap_validation"
-        FINISH_RTL = "finish_rtl"
+class CircuitTimeTrialFSM(AbstractFSMBaseClass):
+    PLAN_CIRCUIT = State()
 
     def __init__(self):
-        super().__init__("Circuit Time Trial", time_limit=600.0)
-        self.state = self.State.PLAN_CIRCUIT
+        super().__init__()
 
     def execute_mission_logic(self):
         return
