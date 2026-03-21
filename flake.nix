@@ -13,7 +13,7 @@
     control.url = "./control";
     guidance.url = "./guidance";
     navigation.url = "./navigation";
-    control.url = "./control";
+
     mujoco-sim.url = "./mujoco-sim";
   };
 
@@ -64,7 +64,7 @@
           # Flight stack modules
           guidance   = inputs.guidance.packages.${system}.default;
           navigation = inputs.navigation.packages.${system}.default;
-          control    = inputs.control.packages.${system}.default;
+
           mujoco-sim = inputs.mujoco-sim.packages.${system}.default;
 
           # Launcher: Spins up all with shared config
