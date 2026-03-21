@@ -25,9 +25,9 @@ clean:
 nuke: clean
     @nix-collect-garbage
 
-# creates a new node from the script, with NAME as the node name, and BUILD as the build type (currently python or rust)
-new NAME BUILD:
-    @ ./.build_utils/new_node.py {{ NAME }} {{ BUILD }}
+# creates a new node from the script, with NAME as the node name, and TEMPLATE as the template name inside of .build_utils/templates
+new NAME TEMPLATE:
+    @ ./.build_utils/create.py {{ NAME }} {{ TEMPLATE }}
 
 # opens the nix shell
 develop:

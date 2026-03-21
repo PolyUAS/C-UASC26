@@ -10,3 +10,4 @@ target/
 debug/
 .DS_Store
 
+.ropeproject
