@@ -6,3 +6,7 @@ result
 target
 
 **/.DS_Store
+
+
+**/.ropeproject
+.direnv

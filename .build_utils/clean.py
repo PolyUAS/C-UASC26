@@ -26,10 +26,10 @@ def safe_rmtree(path):
         print(f"✗ Error removing {path}: {e}")
 
 
+remove_list = ["/target", "/debug", "/.venv", "/dist", "/build"]
+
 if __name__ == "__main__":
     for dir in listdir():
         if isdir(dir):
-            safe_rmtree(dir + "/target")
-            safe_rmtree(dir + "/debug")
-            safe_rmtree(dir + "/.venv")
-            safe_rmtree(dir + "/dist")
+            for elem in remove_list:
+                safe_rmtree(dir + elem)

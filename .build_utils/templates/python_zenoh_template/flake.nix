@@ -1,5 +1,5 @@
 {
-  description = "simpledemo — Python Zenoh Node";
+  description = "python_zenoh_template — Python Zenoh Node";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     pyproject-nix = {
@@ -58,7 +58,7 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           pythonSet = pythonSets.${system}.overrideScope editableOverlay;
-          virtualenv = pythonSet.mkVirtualEnv "simpledemo-dev-env" workspace.deps.all;
+          virtualenv = pythonSet.mkVirtualEnv "python_zenoh_template-dev-env" workspace.deps.all;
         in
         {
           default = pkgs.mkShell {
@@ -73,13 +73,13 @@
             };
             shellHook = ''
               unset PYTHONPATH
-              export REPO_ROOT=$(git rev-parse --show-toplevel)
+              export REPO_ROOT=$(git rev-parse --show-toplevel)/python_zenoh_template
             '';
           };
         }
       );
       packages = forAllSystems (system: {
-        default = pythonSets.${system}.mkVirtualEnv "simpledemo-env" workspace.deps.default;
+        default = pythonSets.${system}.mkVirtualEnv "python_zenoh_template-env" workspace.deps.default;
       });
     };
 }

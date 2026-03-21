@@ -6,7 +6,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
-    simpledemo.url = "./simpledemo";
+
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -20,16 +20,16 @@
 
       perSystem = { config, self', inputs', pkgs, system, ... }: let
         # Allows definition of system-specific attributes
-          # without needing to declare the system explicitly!
-          #
-          # Quick rundown of the provided arguments:
-          # - config is a reference to the full configuration, lazily evaluated
-          # - self' is the outputs as provided here, without system. (self'.packages.default)
-          # - inputs' is the input without needing to specify system (inputs'.foo.packages.bar)
-          # - pkgs is an instance of nixpkgs for your specific system
-          # - system is the system this configuration is for
+        # without needing to declare the system explicitly!
+        #
+        # Quick rundown of the provided arguments:
+        # - config is a reference to the full configuration, lazily evaluated
+        # - self' is the outputs as provided here, without system. (self'.packages.default)
+        # - inputs' is the input without needing to specify system (inputs'.foo.packages.bar)
+        # - pkgs is an instance of nixpkgs for your specific system
+        # - system is the system this configuration is for
 
-          # This is equivalent to packages.<system>.default
+        # This is equivalent to packages.<system>.default
 
         # Generate shared Zenoh config (customize as needed; could derive from template)
         sharedConfig = pkgs.writeText "zenoh-config.json" ''
@@ -48,7 +48,7 @@
         packages = {
           rust_demo = inputs.rust-demo-sub.packages.${system}.default;
           python_demo = inputs.python-demo-sub.packages.${system}.default;
-          hello_world = inputs.simpledemo.packages.${system}.default;
+
 
           # Launcher: Spins up all with shared config
           demo = pkgs.writeShellApplication {
@@ -81,7 +81,6 @@
             self'.packages.rust_demo
             self'.packages.python_demo
 
-            self'.packages.hello_world
 
             pkgs.just
             pkgs.uv
