@@ -1,8 +1,0 @@
-{
-  "command_id": "test-takeoff-001",
-  "mission_id": "test-mission",
-  "command_type": "takeoff",
-  "target": {"altitude_m": 30.0},
-  "timeout_sec": 10.0,
-  "safety_mode": "normal"
-}
