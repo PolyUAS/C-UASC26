@@ -1,0 +1,29 @@
+Here are the scaling factors (multipliers / units) for the fields in the MAVLink GLOBAL_POSITION_INT message (corresponding to your Rust struct GLOBAL_POSITION_INT_DATA):
+
+time_boot_ms: u32 → milliseconds (ms) since system boot
+No scaling — value is used directly.
+lat: i32 → degrees × 10⁷ (i.e. degE7)
+To get actual latitude in decimal degrees:
+latitude_deg = lat as f64 / 10_000_000.0
+lon: i32 → degrees × 10⁷ (i.e. degE7)
+To get actual longitude in decimal degrees:
+longitude_deg = lon as f64 / 10_000_000.0
+alt: i32 → millimeters (mm) above mean sea level (MSL)
+To get altitude in meters:
+alt_m = alt as f64 / 1000.0
+relative_alt: i32 → millimeters (mm) above home/launch position
+To get relative altitude in meters:
+relative_alt_m = relative_alt as f64 / 1000.0
+vx: i16, vy: i16, vz: i16 → cm/s (centimeters per second)
+vx = North component
+vy = East component
+vz = Down component (positive = descending)
+To get speed in m/s:
+vx_ms = vx as f64 / 100.0 (same for vy, vz)
+
+hdg: u16 → heading in degrees × 100 (0–359.99°)
+To get heading in degrees:
+heading_deg = hdg as f64 / 100.0
+(Special value: UINT16_MAX = 65535 means heading is unknown)
+
+These scalings come directly from the official MAVLink common message definitions (GLOBAL_POSITION_INT, message ID 33). The integer scaling for lat/lon (×10⁷) and alt/relative_alt (×1000) exists to preserve enough precision without using floating-point values in the wire format.

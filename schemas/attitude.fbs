@@ -1,0 +1,15 @@
+namespace Attitude;
+
+
+table AttitudePacket {
+    roll: float32; // (-pi -> pi)
+    pitch: float32; // (-pi -> pi)
+    yaw: float32; // (-pi -> pi)
+    vroll: float32; // rad/sec
+    vpitch: float32; // rad/sec
+    vyaw: float32; // rad/sec
+
+}
+
+
+root_type AttitudePacket;
