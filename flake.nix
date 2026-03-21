@@ -7,6 +7,9 @@
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
+
+    vision-node.url = "./vision";
+
     control.url = "./control";
   };
 
@@ -50,6 +53,7 @@
           rust_demo = inputs.rust-demo-sub.packages.${system}.default;
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
+          vision = inputs.vision-node.packages.${system}.default;
 
           control = inputs.control.packages.${system}.default;
 
@@ -76,6 +80,20 @@
           };
 
           default = self'.packages.demo;
+
+          reset_jetson_network = pkgs.writeShellApplication {
+            name = "reset_jetson_network";
+            runtimeInputs = [
+
+            ];
+            text = ''
+                sudo ip addr flush dev enP8p1s0
+                sudo ip addr add 192.168.144.30/24 dev enP8p1s0
+                sudo ip link set enP8p1s0 up
+            '';
+          };
+
+
         };
 
         devShells.default = pkgs.mkShell {
@@ -86,6 +104,9 @@
 
             self'.packages.hello_world
 
+            self'.packages.vision
+
+            self'.packages.reset_jetson_network
             self'.packages.control
 
             pkgs.just

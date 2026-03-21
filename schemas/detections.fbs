@@ -1,0 +1,20 @@
+
+
+table Detection {
+    ctr_x: uint32;
+    ctr_y : uint32;
+    width : uint32;
+    height : uint32;
+    class_id: string;
+    metadata: string;
+    confidence : float64;
+}
+
+
+table Frame {
+    width : uint32;
+    height : uint32;
+
+    detections : [Detection];
+    metadata: string;
+}
