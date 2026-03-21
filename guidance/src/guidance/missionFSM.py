@@ -21,10 +21,10 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     ABORTED = State(final=True)
     EMERGENCY = State()
 
-    IDLE.to(PREFLIGHT)
-    PREFLIGHT.to(TAKEOFF)
+    initialize = IDLE.to(PREFLIGHT)
+    launch = PREFLIGHT.to(TAKEOFF)
 
-    LANDING.to(COMPLETE)
+    finish = LANDING.to(COMPLETE)
     EMERGENCY.to(RTL)
 
     RTL.to(ABORTED, COMPLETE)
