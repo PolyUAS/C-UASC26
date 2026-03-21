@@ -25,7 +25,8 @@ impl<'a> ::flatbuffers::Follow<'a> for State<'a> {
 impl<'a> State<'a> {
   pub const VT_YAW: ::flatbuffers::VOffsetT = 4;
   pub const VT_PITCH: ::flatbuffers::VOffsetT = 6;
-  pub const VT_ZOOM: ::flatbuffers::VOffsetT = 8;
+  pub const VT_ROLL: ::flatbuffers::VOffsetT = 8;
+  pub const VT_ZOOM: ::flatbuffers::VOffsetT = 10;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -38,6 +39,7 @@ impl<'a> State<'a> {
   ) -> ::flatbuffers::WIPOffset<State<'bldr>> {
     let mut builder = StateBuilder::new(_fbb);
     builder.add_zoom(args.zoom);
+    builder.add_roll(args.roll);
     builder.add_pitch(args.pitch);
     builder.add_yaw(args.yaw);
     builder.finish()
@@ -59,6 +61,13 @@ impl<'a> State<'a> {
     unsafe { self._tab.get::<f32>(State::VT_PITCH, Some(0.0)).unwrap()}
   }
   #[inline]
+  pub fn roll(&self) -> f32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<f32>(State::VT_ROLL, Some(0.0)).unwrap()}
+  }
+  #[inline]
   pub fn zoom(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
@@ -75,6 +84,7 @@ impl ::flatbuffers::Verifiable for State<'_> {
     v.visit_table(pos)?
      .visit_field::<f32>("yaw", Self::VT_YAW, false)?
      .visit_field::<f32>("pitch", Self::VT_PITCH, false)?
+     .visit_field::<f32>("roll", Self::VT_ROLL, false)?
      .visit_field::<f32>("zoom", Self::VT_ZOOM, false)?
      .finish();
     Ok(())
@@ -83,6 +93,7 @@ impl ::flatbuffers::Verifiable for State<'_> {
 pub struct StateArgs {
     pub yaw: f32,
     pub pitch: f32,
+    pub roll: f32,
     pub zoom: f32,
 }
 impl<'a> Default for StateArgs {
@@ -91,6 +102,7 @@ impl<'a> Default for StateArgs {
     StateArgs {
       yaw: 0.0,
       pitch: 0.0,
+      roll: 0.0,
       zoom: 0.0,
     }
   }
@@ -108,6 +120,10 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> StateBuilder<'a, 'b, A> {
   #[inline]
   pub fn add_pitch(&mut self, pitch: f32) {
     self.fbb_.push_slot::<f32>(State::VT_PITCH, pitch, 0.0);
+  }
+  #[inline]
+  pub fn add_roll(&mut self, roll: f32) {
+    self.fbb_.push_slot::<f32>(State::VT_ROLL, roll, 0.0);
   }
   #[inline]
   pub fn add_zoom(&mut self, zoom: f32) {
@@ -133,6 +149,7 @@ impl ::core::fmt::Debug for State<'_> {
     let mut ds = f.debug_struct("State");
       ds.field("yaw", &self.yaw());
       ds.field("pitch", &self.pitch());
+      ds.field("roll", &self.roll());
       ds.field("zoom", &self.zoom());
       ds.finish()
   }

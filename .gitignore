@@ -8,6 +8,12 @@ target
 **/.DS_Store
 .direnv
 .DS_Store
+**/.venv
+**/__pycache__˝
+
+ardupilot
+
+**/.ropeproject
 
 
 tmp

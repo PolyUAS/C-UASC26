@@ -7,15 +7,19 @@
     rust-demo-sub.url = "./rust_sub";
     python-demo-sub.url = "./python_sub";
     simpledemo.url = "./simpledemo";
+
+    vision-node.url = "./vision";
+
+    control.url = "./control";
     guidance.url = "./guidance";
     navigation.url = "./navigation";
-    control.url = "./control";
+
     mujoco-sim.url = "./mujoco-sim";
   };
 
   outputs = inputs @ { flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" "x86_64-windows" "aarch64-windows"];
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
       imports = [
         # ./module.nix
@@ -53,11 +57,14 @@
           rust_demo = inputs.rust-demo-sub.packages.${system}.default;
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
+          vision = inputs.vision-node.packages.${system}.default;
+
+          control = inputs.control.packages.${system}.default;
 
           # Flight stack modules
           guidance   = inputs.guidance.packages.${system}.default;
           navigation = inputs.navigation.packages.${system}.default;
-          control    = inputs.control.packages.${system}.default;
+
           mujoco-sim = inputs.mujoco-sim.packages.${system}.default;
 
           # Launcher: Spins up all with shared config
@@ -152,6 +159,20 @@
           };
 
           default = self'.packages.demo;
+
+          reset_jetson_network = pkgs.writeShellApplication {
+            name = "reset_jetson_network";
+            runtimeInputs = [
+
+            ];
+            text = ''
+                sudo ip addr flush dev enP8p1s0
+                sudo ip addr add 192.168.144.30/24 dev enP8p1s0
+                sudo ip link set enP8p1s0 up
+            '';
+          };
+
+
         };
 
         devShells.default = pkgs.mkShell {
@@ -161,11 +182,18 @@
             self'.packages.python_demo
             self'.packages.hello_world
 
+            self'.packages.vision
+
+            self'.packages.reset_jetson_network
+            self'.packages.control
+
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
+            pkgs.htop
           ];
           env.ZENOH_CONFIG = sharedConfig;
+          env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
           shellHook = ''
             export ZENOH_CONFIG=${sharedConfig}
             alias j="just"

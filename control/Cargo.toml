@@ -5,18 +5,18 @@ edition = "2024"
 
 [dependencies]
 
-siyi-protocol = { version = "0.1", features = ["a8mini", "udp"] }
 anyhow = "1.0.102"
 
 ctrlc = "3.5.1"
 flatbuffers = "25.12.19"
 
-mavlink = {version = "0.17.0", features = ["tcp"]}
-tokio = "1.49.0"
+mavlink = { version = "0.17.1", features = ["tokio-1", "common", "ardupilotmega"] }
+tokio = { version = "1.49.0", features = ["full"] }
 
 
-zenoh = {version = "1.7.2", features = ["shared-memory"]}
-zenoh-ext = "1.7.2"
+zenoh = {version = ">=1.7.2", features = ["shared-memory"]}
+zenoh-ext = ">=1.7.2"
+a8mini-camera-rs = "=0.2.1"
 
 [[bin]]
 name = "control"
