@@ -1,4 +1,5 @@
 from abc import ABC, ABCMeta
+from tkinter.constants import TOP
 
 from statemachine import State, StateMachine
 
@@ -20,6 +21,14 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     COMPLETE = State(final=True)
     ABORTED = State(final=True)
     EMERGENCY = State()
+
+    IDLE.to(PREFLIGHT)
+    PREFLIGHT.to(TAKEOFF)
+
+    LANDING.to(COMPLETE)
+    EMERGENCY.to(RTL)
+
+    RTL.to(ABORTED, COMPLETE)
 
     geofence: list[Coords] = []
 
