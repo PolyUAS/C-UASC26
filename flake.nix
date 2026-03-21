@@ -10,11 +10,12 @@
 
     vision-node.url = "./vision";
 
+    control.url = "./control";
   };
 
   outputs = inputs @ { flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" "x86_64-windows" "aarch64-windows"];
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
       imports = [
         # ./module.nix
@@ -53,6 +54,8 @@
           python_demo = inputs.python-demo-sub.packages.${system}.default;
           hello_world = inputs.simpledemo.packages.${system}.default;
           vision = inputs.vision-node.packages.${system}.default;
+
+          control = inputs.control.packages.${system}.default;
 
           # Launcher: Spins up all with shared config
           demo = pkgs.writeShellApplication {
@@ -104,13 +107,15 @@
             self'.packages.vision
 
             self'.packages.reset_jetson_network
+            self'.packages.control
 
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
-
+            pkgs.htop
           ];
           env.ZENOH_CONFIG = sharedConfig;
+          env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
           shellHook = ''
             export ZENOH_CONFIG=${sharedConfig}
             alias j="just"
