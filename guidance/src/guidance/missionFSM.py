@@ -14,7 +14,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     IDLE = State(initial=True)
     PREFLIGHT = State()
     TAKEOFF = State()
-    EXECUTING = State()
+    EXECUTING = State()  # transitive state. Hands off to subclass
     RTL = State()
     LANDING = State()
     COMPLETE = State(final=True)
