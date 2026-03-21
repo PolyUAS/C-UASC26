@@ -48,9 +48,9 @@ nix develop
 Nix will install [just](https://just.systems) into your shell. For those familiar with makefiles, its essentially similar. For those unfamiliar to makefiles, it's "just a command runner" that allows us to write more concise commands.
 
 ```sh
-just new <node name> <type: python | rust>
+just new <node name> <template_name (in .build_utils/templates): python_zenoh_template | rust_zenoh_template>
 ```
 > **_NOTE:_**  In this project, by running "just" or "just --list" the justfile will display helpful info about the recipes available. Just is also aliased to "j" in the Nix shell
 
 
-The python script in .build_utils will run, creating a new node and locking it through uv or cargo.
+The python script in .build_utils will run, creating a new node and running a script relevant to that node's setup.
