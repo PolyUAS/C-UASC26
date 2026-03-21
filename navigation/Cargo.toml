@@ -1,0 +1,14 @@
+[package]
+name = "navigation"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+zenoh = {version = "1", features = ["shared-memory"]}
+
+flatbuffers = "25.12.19"
+
+[[bin]]
+name = "navigation"
+path = "src/main.rs"

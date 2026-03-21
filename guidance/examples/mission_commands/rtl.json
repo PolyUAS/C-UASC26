@@ -1,0 +1,8 @@
+{
+  "command_id": "cmd-rtl-001",
+  "mission_id": "mission-failsafe",
+  "command_type": "rtl",
+  "target": {},
+  "timeout_sec": 2.0,
+  "safety_mode": "strict"
+}

@@ -1,0 +1,21 @@
+// CommandAck — published on guidance/mission/ack
+// Producer: control (hardware) OR sim actuation
+// Consumer: guidance-ack-monitor, mission FSMs
+
+namespace guidance;
+
+enum AckStatus: byte {
+  ACCEPTED = 0,
+  REJECTED,
+  COMPLETED,
+  TIMED_OUT,
+  FAILED
+}
+
+table CommandAck {
+  command_id:  string (required);
+  status:      AckStatus;
+  reason:      string;
+}
+
+root_type CommandAck;
