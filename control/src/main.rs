@@ -1,36 +1,39 @@
 use mavlink::AsyncMavConnection;
-
 use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::MavMessage;
-
-use tokio::sync::broadcast::Sender;
 
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 
 use zenoh::{self};
 
+mod fc_header_utils;
 mod generated;
+mod geofence;
 mod gimbal;
+mod missions;
+mod receiver_utils;
 mod telemetry;
-
-use gimbal::create_gimbal_subscriber;
-use gimbal::spawn_gimbal_task;
-use telemetry::telemetry_loop;
 
 use generated::attitude_generated;
 use generated::geofence_generated;
 use generated::gimbal_generated;
 use generated::position_generated;
 
-mod geofence;
-
 use geofence::create_geofence_queryable;
+
+use gimbal::create_gimbal_subscriber;
+use gimbal::spawn_gimbal_task;
+
+use missions::get_missions;
+
+use telemetry::telemetry_loop;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
@@ -103,6 +106,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _geofence_query =
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
 
+    get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
+
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
         running.store(false, Ordering::Release);
@@ -134,7 +139,12 @@ fn create_mavlink_broadcast_thread(
     tokio::spawn(async move {
         while active.load(Ordering::Acquire) {
             if let Some(msg_tuple) = reciever_clone.recv().await.ok() {
+                let header = msg_tuple.0;
+
                 rx_bc_rx.send(msg_tuple).ok();
+
+                // ik what im doing here
+                fc_header_utils::set_headers(header.system_id, header.component_id);
             }
         }
     });

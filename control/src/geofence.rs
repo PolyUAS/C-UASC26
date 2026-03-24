@@ -1,4 +1,5 @@
 use crate::SharedAsyncMavConn;
+use crate::fc_header_utils;
 use flatbuffers::{self, FlatBufferBuilder};
 
 use mavlink::ardupilotmega::PARAM_REQUEST_READ_DATA;
@@ -37,10 +38,12 @@ pub async fn get_geofence(
     let mut bytes = [0u8; 16];
     bytes[..name.len()].copy_from_slice(name.as_bytes());
 
+    let (sys, comp) = fc_header_utils::wait_for_headers().await;
+
     vehicle
         .send_default(&MavMessage::PARAM_REQUEST_READ(PARAM_REQUEST_READ_DATA {
-            target_system: 1, // adjust if needed
-            target_component: 1,
+            target_system: sys, // adjust if needed
+            target_component: comp,
             param_id: CharArray::new(bytes),
             param_index: -1, // use name, not index
         }))
@@ -72,8 +75,8 @@ pub async fn get_geofence(
     for idx in 0..total_points {
         vehicle
             .send_default(&MavMessage::FENCE_FETCH_POINT(FENCE_FETCH_POINT_DATA {
-                target_system: 1,
-                target_component: 1,
+                target_system: sys,
+                target_component: comp,
                 idx: idx as u8, // note: idx is u8
                 ..Default::default()
             }))

@@ -26,7 +26,7 @@ pub async fn telemetry_loop<'a>(
     let mut builder = FlatBufferBuilder::new();
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
-            Ok((_header, msg)) => {
+            Ok((header, msg)) => {
                 match msg {
                     MavMessage::AHRS(data) => {}
                     MavMessage::AHRS2(data) => {}
@@ -67,12 +67,17 @@ pub async fn telemetry_loop<'a>(
                         let payload = builder.finished_data();
                         position_pub.put(payload).await.ok();
                     }
-                    MavMessage::GPS2_RAW(data) => { /* Id: 124 */ }
+                    MavMessage::GPS2_RAW(data) => {}
                     MavMessage::GPS_RAW_INT(data) => {}
-                    MavMessage::HEARTBEAT(data) => {}
+                    MavMessage::HEARTBEAT(data) => match data.autopilot {
+                        mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_GENERIC => {}
+                        _ => {}
+                    },
                     MavMessage::MCU_STATUS(data) => { /* Id: 11039 — ArduPilot-specific */ }
                     MavMessage::MEMINFO(data) => { /* Id: 152 */ }
-                    MavMessage::MISSION_CURRENT(data) => {}
+                    MavMessage::MISSION_CURRENT(data) => {
+                        data.seq;
+                    }
                     MavMessage::NAV_CONTROLLER_OUTPUT(data) => {}
                     MavMessage::POWER_STATUS(data) => {}
                     MavMessage::RAW_IMU(data) => { /* Id: 27 */ }
