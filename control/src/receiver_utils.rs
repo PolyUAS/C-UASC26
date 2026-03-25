@@ -41,7 +41,7 @@ where
     }
 }
 
-pub async fn wait_for_cmd(
+pub async fn wait_for_cmd_status(
     timeout: Duration,
     sub: &mut Receiver<(MavHeader, MavMessage)>,
     expected_cmd: mavlink::ardupilotmega::MavCmd,

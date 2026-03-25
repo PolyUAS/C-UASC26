@@ -4,7 +4,7 @@ static mut FC_SYS_ID: Option<u8> = None;
 static mut FC_SYS_COMP: Option<u8> = None;
 
 ///----------------------------------
-// This looks really, really scary, but I know what im doing here.
+// This looks really, really scary, but I PROMISE know what im doing here.
 // -Isaac
 ///----------------------------------
 
@@ -26,7 +26,7 @@ pub fn set_headers(sys_id: u8, comp_id: u8) {
 pub async fn wait_for_headers() -> (u8, u8) {
     let mut sys = None;
     let mut comp = None;
-    while sys == None && comp == None {
+    while sys == None || comp == None {
         (sys, comp) = get_headers();
         tokio::time::sleep(Duration::from_millis(500)).await
     }
