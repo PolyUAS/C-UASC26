@@ -35,8 +35,8 @@ pub async fn get_geofence(
     // 1. Request FENCE_TOTAL parameter
     let name = "FENCE_TOTAL";
     assert!(name.len() <= 16, "Param name too long");
-    let mut bytes = [0u8; 16];
-    bytes[..name.len()].copy_from_slice(name.as_bytes());
+    let mut name_as_bytes = [0u8; 16];
+    name_as_bytes[..name.len()].copy_from_slice(name.as_bytes());
 
     let (sys, comp) = fc_header_utils::wait_for_headers().await;
 
@@ -44,7 +44,7 @@ pub async fn get_geofence(
         .send_default(&MavMessage::PARAM_REQUEST_READ(PARAM_REQUEST_READ_DATA {
             target_system: sys, // adjust if needed
             target_component: comp,
-            param_id: CharArray::new(bytes),
+            param_id: CharArray::new(name_as_bytes),
             param_index: -1, // use name, not index
         }))
         .await?;
