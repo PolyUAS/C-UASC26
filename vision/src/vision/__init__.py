@@ -2,6 +2,12 @@ import time
 
 import cv2
 
+print(cv2.__version__)
+print("cv2 File: " + cv2.__file__)
+print("CUDA devices:", cv2.cuda.getCudaEnabledDeviceCount())
+print("Build info:", cv2.getBuildInformation())
+
+
 rtsp_url = "rtsp://192.168.144.25:8554/main.264"
 
 RENDER_WINDOW = False

@@ -2,16 +2,24 @@
 name = "vision"
 version = "0.1.0"
 description = "vision - Python Zenoh Node"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
- "eclipse-zenoh>=1.7.1",
- "flatbuffers>=25.12.19",
- "opencv-python>=4.13.0.92",
+    "eclipse-zenoh>=1.7.1",
+    "flatbuffers>=25.12.19",
+    "opencv-python",                    # remove version pin
+
 ]
 
-# this defines the entrypoint of the python program.
-# we look in the package hello_world and find the function main (inside __init__.py)
-# the function must be visible (i.e. imported or defined) in __init__.py
+[[tool.uv.index]]
+name = "jetson-ai-lab"
+url = "https://pypi.jetson-ai-lab.io/jp6/cu126"
+default = true
+
+
+[tool.uv.sources]
+opencv-python = { index = "jetson-ai-lab" }
+
+
 [project.scripts]
 vision = "vision:main"
 
