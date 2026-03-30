@@ -1,11 +1,14 @@
-use a8mini_camera_rs::A8Mini;
 use a8mini_camera_rs::control::A8MiniComplexCommand;
+use a8mini_camera_rs::{A8Mini, control::Command};
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use zenoh::{self};
 
 use crate::gimbal_generated;
+
+const COMMAND_RATE: Duration = Duration::from_millis(500);
 
 pub fn spawn_gimbal_task(
     cam: Arc<A8Mini>,
@@ -21,8 +24,40 @@ pub fn spawn_gimbal_task(
             ))
             .await
             .ok();
+
+            cam.send_command(ZoomCmd::new(zoom)).await.ok();
+            tokio::time::sleep(COMMAND_RATE).await;
         }
     })
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+struct ZoomCmd {
+    zoom: f32,
+}
+
+impl ZoomCmd {
+    fn new(zoom: f32) -> Self {
+        ZoomCmd {
+            zoom: zoom.clamp(1.0, 6.0),
+        }
+    }
+}
+
+impl Command for ZoomCmd {
+    fn to_bytes(&self) -> Vec<u8> {
+        let int_zoom = self.zoom.floor() as u8;
+        let frac_zoom = ((self.zoom - int_zoom as f32) * 10.0).floor() as u8;
+
+        let mut byte_arr: Vec<u8> = vec![0x55, 0x66, 0x01, 0x02, 0x00, 0x00, 0x00, 0x0f];
+
+        byte_arr.push(int_zoom.clamp(0x1, 0x1e) as u8);
+        byte_arr.push(frac_zoom.clamp(0x00, 0x9) as u8);
+
+        byte_arr.extend_from_slice(&a8mini_camera_rs::checksum::crc16_calc(&byte_arr, 0));
+
+        byte_arr
+    }
 }
 
 pub async fn create_gimbal_subscriber(

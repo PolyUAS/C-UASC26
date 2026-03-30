@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .declare_publisher("control/health/heartbeat")
         .await?;
 
-    let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32, 0.0f32));
+    let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32, 1.0f32)); // zoom 1.0 by default
     // Setup gimbal subscriber
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
 
