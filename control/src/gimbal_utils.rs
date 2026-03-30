@@ -1,10 +1,11 @@
-use a8mini_camera_rs::control::A8MiniComplexCommand;
+use a8mini_camera_rs::control::{A8MiniComplexCommand, A8MiniSimpleCommand};
 use a8mini_camera_rs::{A8Mini, control::Command};
+use flatbuffers::FlatBufferBuilder;
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use zenoh::{self};
+use zenoh::{self, Session};
 
 use crate::gimbal_generated;
 
@@ -12,20 +13,54 @@ const COMMAND_RATE: Duration = Duration::from_millis(500);
 
 pub fn spawn_gimbal_task(
     cam: Arc<A8Mini>,
-    mut gimbal_rx: tokio::sync::watch::Receiver<(f32, f32, f32)>,
+    gimbal_rx: tokio::sync::watch::Receiver<(f32, f32, f32)>,
+    session: &Session,
 ) -> tokio::task::JoinHandle<()> {
+    let session = session.clone();
+
     tokio::spawn(async move {
-        loop {
-            gimbal_rx.changed().await.ok();
-            let (yaw, pitch, zoom) = *gimbal_rx.borrow();
-            cam.send_command(A8MiniComplexCommand::SetYawPitchAngle(
-                (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
-                (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
-            ))
+        let gimbal_pub = session
+            .declare_publisher("control/telem/gimbal")
             .await
+            .expect("control critical err: failed to initialize gimbal telem publisher");
+
+        cam.send_command(A8MiniSimpleCommand::SetVideoOutputOff)
+            .await // disable the other video feeds bc we dont use them
             .ok();
 
-            cam.send_command(ZoomCmd::new(zoom)).await.ok();
+        let mut fbb = FlatBufferBuilder::new();
+
+        loop {
+            if gimbal_rx.has_changed().ok() == Some(true) {
+                let (yaw, pitch, zoom) = *gimbal_rx.borrow();
+
+                cam.send_command(A8MiniComplexCommand::SetYawPitchAngle(
+                    (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
+                    (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
+                ))
+                .await
+                .ok();
+
+                cam.send_command(ZoomCmd::new(zoom)).await.ok();
+            }
+
+            if let Some(info) = cam.get_attitude_information().await.ok() {
+                fbb.reset();
+                let pack = gimbal_generated::gimbal::State::create(
+                    &mut fbb,
+                    &gimbal_generated::gimbal::StateArgs {
+                        yaw: info.theta_yaw as f32,
+                        pitch: info.theta_pitch as f32,
+                        roll: info.theta_roll as f32,
+                        zoom: -1.0, // impossible value, we dont do zoom telem
+                    },
+                );
+                fbb.finish(pack, None);
+                let payload = fbb.finished_data().to_vec();
+
+                gimbal_pub.put(payload).await.ok();
+            }
+
             tokio::time::sleep(COMMAND_RATE).await;
         }
     })
@@ -51,8 +86,8 @@ impl Command for ZoomCmd {
 
         let mut byte_arr: Vec<u8> = vec![0x55, 0x66, 0x01, 0x02, 0x00, 0x00, 0x00, 0x0f];
 
-        byte_arr.push(int_zoom.clamp(0x1, 0x1e) as u8);
-        byte_arr.push(frac_zoom.clamp(0x00, 0x9) as u8);
+        byte_arr.push(int_zoom.clamp(0x1, 0x1e));
+        byte_arr.push(frac_zoom.clamp(0x00, 0x9));
 
         byte_arr.extend_from_slice(&a8mini_camera_rs::checksum::crc16_calc(&byte_arr, 0));
 

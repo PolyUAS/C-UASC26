@@ -77,7 +77,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await?;
 
     let attitude_pub = session.declare_publisher("control/telem/attitude").await?;
-    let gimbal_pub = session.declare_publisher("control/telem/gimbal").await?;
 
     let battery_publisher = session.declare_publisher("control/health/battery").await?;
     let heartbeat_publisher = session
@@ -89,7 +88,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
 
     // In a dedicated task:
-    spawn_gimbal_task(shared_camera.clone(), gimbal_rx.clone());
+    spawn_gimbal_task(shared_camera.clone(), gimbal_rx.clone(), &session);
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
 

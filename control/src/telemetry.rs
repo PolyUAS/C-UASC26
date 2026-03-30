@@ -51,7 +51,7 @@ pub async fn telemetry_loop<'a>(
                             },
                         );
                         builder.finish(root, None);
-                        let payload = builder.finished_data();
+                        let payload = builder.finished_data().to_vec();
 
                         attitude_pub.put(payload).await.ok();
                     }
@@ -68,7 +68,7 @@ pub async fn telemetry_loop<'a>(
                             },
                         );
                         builder.finish(root, None);
-                        let payload = builder.finished_data();
+                        let payload = builder.finished_data().to_vec();
                         let _ = battery_pub.put(payload).await;
                     }
                     MavMessage::EKF_STATUS_REPORT(data) => {}
@@ -87,7 +87,7 @@ pub async fn telemetry_loop<'a>(
                             },
                         );
                         builder.finish(root, None);
-                        let payload = builder.finished_data();
+                        let payload = builder.finished_data().to_vec();
                         position_pub.put(payload).await.ok();
                     }
                     MavMessage::GPS2_RAW(data) => {}
@@ -134,8 +134,8 @@ pub async fn telemetry_loop<'a>(
                             _ => {}
                         }
                         builder.finish(pack, None);
-                        let payload = builder.finished_data();
-                        heartbeat_pub.put(payload).await;
+                        let payload = builder.finished_data().to_vec();
+                        heartbeat_pub.put(payload).await.ok();
                     }
                     MavMessage::MCU_STATUS(data) => { /* Id: 11039 — ArduPilot-specific */ }
                     MavMessage::MEMINFO(data) => { /* Id: 152 */ }
