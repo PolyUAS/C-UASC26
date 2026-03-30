@@ -1,0 +1,25 @@
+namespace Heartbeat;
+
+
+
+enum Status : byte {
+    Active = 0,
+    Boot,
+    Calibrating,
+    Standby,
+    Critical,
+    Emergency,
+    Flight_Terminating,
+    Power_Off,
+    Uninit
+}
+
+
+table HeartbeatHealthPacket {
+    system_status:Status;
+
+
+}
+
+
+root_type HeartbeatHealthPacket;

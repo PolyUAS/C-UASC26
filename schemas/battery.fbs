@@ -1,0 +1,15 @@
+namespace Battery;
+
+// IF INVALID FIELDS => FC DOES NOT CALC BATT
+table BatteryStatus {
+    consumed_current:int32; // -1 if invalid
+    consumed_energy:int32; // -1 if invalid
+    temperature:int16; // -1 if invalid
+    battery_current:int16;
+    id:ubyte;
+    // TODO FUNCTION AND TYPE
+    remaining: byte;
+}
+
+
+root_type BatteryStatus;
