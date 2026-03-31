@@ -128,7 +128,7 @@
             pkgs.uv
             pkgs.flatbuffers
             self'.packages.zenohd
-            pkgs.htop
+            pkgs.btop
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
