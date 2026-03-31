@@ -12,7 +12,7 @@ pub fn get_headers() -> (Option<u8>, Option<u8>) {
     unsafe { (FC_SYS_ID, FC_SYS_COMP) }
 }
 
-pub fn set_headers(sys_id: u8, comp_id: u8) {
+pub fn set_headers_safely(sys_id: u8, comp_id: u8) {
     unsafe {
         if FC_SYS_ID == None {
             FC_SYS_ID = Some(sys_id);

@@ -145,6 +145,7 @@ fn create_mavlink_broadcast_thread(
     let active = running.clone();
     let broadcaster = bc_tx.clone();
     let vehicle_local = vehicle.clone();
+
     // Receiver task
     tokio::spawn(async move {
         while active.load(Ordering::Acquire) {
@@ -154,7 +155,7 @@ fn create_mavlink_broadcast_thread(
                 broadcaster.send(msg_tuple).ok();
 
                 // ik what im doing here
-                fc_header_utils::set_headers(header.system_id, header.component_id);
+                fc_header_utils::set_headers_safely(header.system_id, header.component_id);
             }
         }
     });
