@@ -14,7 +14,9 @@ table Detection {
 table Frame {
     width : uint32;
     height : uint32;
-
     detections : [Detection];
     metadata: string;
 }
+
+
+root_type Frame;
