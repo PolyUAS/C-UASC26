@@ -2,25 +2,21 @@
 ---
 # OUTPUTS
 ## Telem
-- control/telem/gl_pos_int
-- control/telem/attitute
-- control/telem/variance
-- control/telem/nav_status
-- control/telem/gimbal
+- [x] control/telem/gl_pos_int 
+- [x] control/telem/attitute
+- [ ] control/telem/gimbal
 ## RC
-- control/rc/channels
-- control/rc/servos
+- [ ] control/rc/channels
 ## Health
-- control/health/battery
-- control/health/power_status
-- control/health/heartbeat
-- control/health/sys_status
-- control/health/mcu_status
-- control/health/gps_status
+- [x] control/health/battery
+- [x] control/health/heartbeat
+
+
+
 # INPUTS
+- [x] control/in/gimbal
+- [ ] control/in/target_pos
+- [ ] 
 
-# QUERIES
-- control/in/gimbal (control/out/gimbal)
 
-
-TODO GIMBAL HEALTH
+TODO GIMBAL HEALTH???

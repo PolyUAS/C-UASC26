@@ -1,0 +1,18 @@
+
+
+namespace waypoint;
+
+
+table Waypoint {
+    hold_time:float32; // >= 0 seconds
+    heading_target: float32;
+    lat:int32; // degE7
+    lon:int32; // degE7
+    alt:float32; // meters
+    pass_rad:float32; // meters, radius to "pass" the waypoint by (maximum radius to fly by the waypoint)
+    // ACCEPT SHOULD BE HIGHER THAN PASS
+    accept_rad:float32; // meters, radius to accept the waypoint by (min dist to waypoint as radius)
+}
+
+
+root_type Waypoint;
