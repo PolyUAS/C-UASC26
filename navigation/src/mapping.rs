@@ -1,5 +1,7 @@
 use std::f64;
 
+use nalgebra::{Quaternion, UnitQuaternion};
+
 use std::sync::OnceLock;
 static CAM_TO_BODY: OnceLock<nalgebra::UnitQuaternion<f64>> = OnceLock::new();
 
@@ -9,8 +11,6 @@ fn cam_to_body() -> &'static nalgebra::UnitQuaternion<f64> {
         //nalgebra::UnitQuaternion::from_euler_angles(std::f64::consts::PI, 0.0, 0.0)
     })
 }
-
-use nalgebra::{Quaternion, UnitQuaternion};
 
 use crate::generated::{
     attitude_generated::attitude::AttitudePacket, detections_generated::Detection,
