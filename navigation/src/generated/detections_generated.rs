@@ -49,32 +49,32 @@ impl<'a> Detection<'a> {
 
 
   #[inline]
-  pub fn ctr_x(&self) -> u32 {
+  pub fn ctr_x(&self) -> u16 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Detection::VT_CTR_X, Some(0)).unwrap()}
+    unsafe { self._tab.get::<u16>(Detection::VT_CTR_X, Some(0)).unwrap()}
   }
   #[inline]
-  pub fn ctr_y(&self) -> u32 {
+  pub fn ctr_y(&self) -> u16 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Detection::VT_CTR_Y, Some(0)).unwrap()}
+    unsafe { self._tab.get::<u16>(Detection::VT_CTR_Y, Some(0)).unwrap()}
   }
   #[inline]
-  pub fn width(&self) -> u32 {
+  pub fn width(&self) -> u16 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Detection::VT_WIDTH, Some(0)).unwrap()}
+    unsafe { self._tab.get::<u16>(Detection::VT_WIDTH, Some(0)).unwrap()}
   }
   #[inline]
-  pub fn height(&self) -> u32 {
+  pub fn height(&self) -> u16 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Detection::VT_HEIGHT, Some(0)).unwrap()}
+    unsafe { self._tab.get::<u16>(Detection::VT_HEIGHT, Some(0)).unwrap()}
   }
   #[inline]
   pub fn class_id(&self) -> Option<&'a str> {
@@ -105,10 +105,10 @@ impl ::flatbuffers::Verifiable for Detection<'_> {
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
-     .visit_field::<u32>("ctr_x", Self::VT_CTR_X, false)?
-     .visit_field::<u32>("ctr_y", Self::VT_CTR_Y, false)?
-     .visit_field::<u32>("width", Self::VT_WIDTH, false)?
-     .visit_field::<u32>("height", Self::VT_HEIGHT, false)?
+     .visit_field::<u16>("ctr_x", Self::VT_CTR_X, false)?
+     .visit_field::<u16>("ctr_y", Self::VT_CTR_Y, false)?
+     .visit_field::<u16>("width", Self::VT_WIDTH, false)?
+     .visit_field::<u16>("height", Self::VT_HEIGHT, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("class_id", Self::VT_CLASS_ID, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("metadata", Self::VT_METADATA, false)?
      .visit_field::<f64>("confidence", Self::VT_CONFIDENCE, false)?
@@ -117,10 +117,10 @@ impl ::flatbuffers::Verifiable for Detection<'_> {
   }
 }
 pub struct DetectionArgs<'a> {
-    pub ctr_x: u32,
-    pub ctr_y: u32,
-    pub width: u32,
-    pub height: u32,
+    pub ctr_x: u16,
+    pub ctr_y: u16,
+    pub width: u16,
+    pub height: u16,
     pub class_id: Option<::flatbuffers::WIPOffset<&'a str>>,
     pub metadata: Option<::flatbuffers::WIPOffset<&'a str>>,
     pub confidence: f64,
@@ -146,20 +146,20 @@ pub struct DetectionBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
 }
 impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> DetectionBuilder<'a, 'b, A> {
   #[inline]
-  pub fn add_ctr_x(&mut self, ctr_x: u32) {
-    self.fbb_.push_slot::<u32>(Detection::VT_CTR_X, ctr_x, 0);
+  pub fn add_ctr_x(&mut self, ctr_x: u16) {
+    self.fbb_.push_slot::<u16>(Detection::VT_CTR_X, ctr_x, 0);
   }
   #[inline]
-  pub fn add_ctr_y(&mut self, ctr_y: u32) {
-    self.fbb_.push_slot::<u32>(Detection::VT_CTR_Y, ctr_y, 0);
+  pub fn add_ctr_y(&mut self, ctr_y: u16) {
+    self.fbb_.push_slot::<u16>(Detection::VT_CTR_Y, ctr_y, 0);
   }
   #[inline]
-  pub fn add_width(&mut self, width: u32) {
-    self.fbb_.push_slot::<u32>(Detection::VT_WIDTH, width, 0);
+  pub fn add_width(&mut self, width: u16) {
+    self.fbb_.push_slot::<u16>(Detection::VT_WIDTH, width, 0);
   }
   #[inline]
-  pub fn add_height(&mut self, height: u32) {
-    self.fbb_.push_slot::<u32>(Detection::VT_HEIGHT, height, 0);
+  pub fn add_height(&mut self, height: u16) {
+    self.fbb_.push_slot::<u16>(Detection::VT_HEIGHT, height, 0);
   }
   #[inline]
   pub fn add_class_id(&mut self, class_id: ::flatbuffers::WIPOffset<&'b  str>) {
@@ -241,18 +241,18 @@ impl<'a> Frame<'a> {
 
 
   #[inline]
-  pub fn width(&self) -> u32 {
+  pub fn width(&self) -> u16 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Frame::VT_WIDTH, Some(0)).unwrap()}
+    unsafe { self._tab.get::<u16>(Frame::VT_WIDTH, Some(0)).unwrap()}
   }
   #[inline]
-  pub fn height(&self) -> u32 {
+  pub fn height(&self) -> u16 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Frame::VT_HEIGHT, Some(0)).unwrap()}
+    unsafe { self._tab.get::<u16>(Frame::VT_HEIGHT, Some(0)).unwrap()}
   }
   #[inline]
   pub fn detections(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Detection<'a>>>> {
@@ -276,8 +276,8 @@ impl ::flatbuffers::Verifiable for Frame<'_> {
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
-     .visit_field::<u32>("width", Self::VT_WIDTH, false)?
-     .visit_field::<u32>("height", Self::VT_HEIGHT, false)?
+     .visit_field::<u16>("width", Self::VT_WIDTH, false)?
+     .visit_field::<u16>("height", Self::VT_HEIGHT, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Detection>>>>("detections", Self::VT_DETECTIONS, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("metadata", Self::VT_METADATA, false)?
      .finish();
@@ -285,8 +285,8 @@ impl ::flatbuffers::Verifiable for Frame<'_> {
   }
 }
 pub struct FrameArgs<'a> {
-    pub width: u32,
-    pub height: u32,
+    pub width: u16,
+    pub height: u16,
     pub detections: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Detection<'a>>>>>,
     pub metadata: Option<::flatbuffers::WIPOffset<&'a str>>,
 }
@@ -308,12 +308,12 @@ pub struct FrameBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
 }
 impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> FrameBuilder<'a, 'b, A> {
   #[inline]
-  pub fn add_width(&mut self, width: u32) {
-    self.fbb_.push_slot::<u32>(Frame::VT_WIDTH, width, 0);
+  pub fn add_width(&mut self, width: u16) {
+    self.fbb_.push_slot::<u16>(Frame::VT_WIDTH, width, 0);
   }
   #[inline]
-  pub fn add_height(&mut self, height: u32) {
-    self.fbb_.push_slot::<u32>(Frame::VT_HEIGHT, height, 0);
+  pub fn add_height(&mut self, height: u16) {
+    self.fbb_.push_slot::<u16>(Frame::VT_HEIGHT, height, 0);
   }
   #[inline]
   pub fn add_detections(&mut self, detections: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<Detection<'b >>>>) {
