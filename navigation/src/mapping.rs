@@ -10,6 +10,8 @@ fn cam_to_body() -> &'static nalgebra::UnitQuaternion<f64> {
     })
 }
 
+use nalgebra::{Quaternion, UnitQuaternion};
+
 use crate::generated::{
     attitude_generated::attitude::AttitudePacket, detections_generated::Detection,
     gimbal_generated::gimbal::State, position_generated::position::GlobalPositionInt,
@@ -36,26 +38,7 @@ pub fn map_detection(
     frame_h: u16,
     geoproj_params: &GeoprojectionCamParams,
 ) -> Option<[i32; 2]> {
-    let body_roll_rads = (attitude.roll() as f64).to_radians(); // y
-    let body_pitch_rads = (attitude.pitch() as f64).to_radians(); // b
-    let body_yaw_rads = (attitude.yaw() as f64).to_radians(); // a
-
-    let body_q = nalgebra::UnitQuaternion::from_euler_angles(
-        body_roll_rads as f64,
-        body_pitch_rads as f64,
-        body_yaw_rads as f64,
-    );
-
-    let (gimbal_roll_rads, gimbal_pitch_rads, gimbal_yaw_rads) = (
-        (gimbal_att.roll() as f64).to_radians(),
-        (gimbal_att.pitch() as f64).to_radians(),
-        (gimbal_att.yaw() as f64).to_radians(),
-    );
-    let cam_q = nalgebra::UnitQuaternion::from_euler_angles(
-        gimbal_roll_rads,
-        gimbal_pitch_rads,
-        gimbal_yaw_rads,
-    );
+    let (body_q, cam_q) = pull_quaternions(&attitude, &gimbal_att);
 
     let view_q = &body_q * &cam_q;
 
@@ -102,4 +85,32 @@ pub fn map_detection(
         ((drone_lat + delta_lat) * 1e7) as i32,
         ((drone_lon + delta_lon) * 1e7) as i32,
     ])
+}
+
+fn pull_quaternions(
+    att: &AttitudePacket,
+    gim: &State,
+) -> (UnitQuaternion<f64>, UnitQuaternion<f64>) {
+    let body_roll_rads = (att.roll() as f64).to_radians(); // y
+    let body_pitch_rads = (att.pitch() as f64).to_radians(); // b
+    let body_yaw_rads = (att.yaw() as f64).to_radians(); // a
+
+    let body_q = nalgebra::UnitQuaternion::from_euler_angles(
+        body_roll_rads as f64,
+        body_pitch_rads as f64,
+        body_yaw_rads as f64,
+    );
+
+    let (gimbal_roll_rads, gimbal_pitch_rads, gimbal_yaw_rads) = (
+        (gim.roll() as f64).to_radians(),
+        (gim.pitch() as f64).to_radians(),
+        (gim.yaw() as f64).to_radians(),
+    );
+    let cam_q = nalgebra::UnitQuaternion::from_euler_angles(
+        gimbal_roll_rads,
+        gimbal_pitch_rads,
+        gimbal_yaw_rads,
+    );
+
+    (body_q, cam_q)
 }
