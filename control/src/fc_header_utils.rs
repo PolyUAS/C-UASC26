@@ -5,6 +5,8 @@ static mut FC_SYS_COMP: Option<u8> = None;
 
 ///----------------------------------
 // This looks really, really scary, but I PROMISE know what im doing here.
+// I'm basically just implementing a OnceLock here, but the stdlib is more
+// cooercive towards a singleton, hench why this exists.
 // -Isaac
 ///----------------------------------
 
