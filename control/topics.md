@@ -2,20 +2,20 @@
 ---
 # OUTPUTS
 ## Telem
-- [x] control/telem/gl_pos_int 
-- [x] control/telem/attitute
-- [ ] control/telem/gimbal
+- [x] control/telem/gl_pos_int => position.fbs
+- [x] control/telem/attitute => attitude.fbs
+- [ ] control/telem/gimbal => gimbal.fbs
 ## RC
 - [ ] control/rc/channels
 ## Health
-- [x] control/health/battery
-- [x] control/health/heartbeat
+- [x] control/health/battery => battery.fbs
+- [x] control/health/heartbeat => heartbeat.fbs
 
 
 
 # INPUTS
-- [x] control/in/gimbal
-- [ ] control/in/target_pos
+- [x] control/in/gimbal => gimbal.fbs
+- [ ] control/in/target_pos => waypoint.fbs
 - [ ] 
 
 
