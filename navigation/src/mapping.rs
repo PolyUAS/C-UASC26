@@ -61,12 +61,8 @@ pub fn map_detection(
     let drone_lat = position.lat() as f64 * 1e-7;
     let drone_lon = position.lon() as f64 * 1e-7;
 
-    println!("drone lat/lon: {drone_lat}/{drone_lon}");
-
     let r_cam_to_body = cam_to_body(); // TODO adjust to your mount
     let ray_world = body_q * cam_q * r_cam_to_body * ray_cam;
-
-    println!("ray: {:?}", ray_world);
 
     if ray_world.z >= 0.0 {
         return None;
@@ -78,12 +74,8 @@ pub fn map_detection(
 
     let t = (drone_alt_mm / 1000.0 + gimbal_offset_vec.z) / (-ray_world.z);
 
-    println!("t = {t}");
-
     let delta_north = gimbal_offset_vec.x + t * ray_world.x;
     let delta_east = gimbal_offset_vec.y + t * ray_world.y;
-
-    println!("d_n: {delta_north}, d_e: {delta_east}");
 
     // Convert NED offsets to lat/lon deltas (flat Earth approximation)
     const EARTH_RADIUS_METERS: f64 = 6_371_000.0_f64; // meters
