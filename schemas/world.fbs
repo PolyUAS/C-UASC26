@@ -9,3 +9,11 @@ table Entity {
     metadata: string;
     confidence : float64;
 }
+
+
+table WorldFrame {
+    entities: [Entity];
+}
+
+
+root_type WorldFrame;

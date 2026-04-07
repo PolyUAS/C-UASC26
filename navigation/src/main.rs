@@ -1,4 +1,4 @@
-use crate::entity_generated::EntityArgs;
+use crate::world_generated::EntityArgs;
 use std::sync::Arc;
 use std::time::SystemTime;
 use std::{error::Error, time::Duration};
@@ -10,7 +10,7 @@ use zenoh::pubsub::Publisher;
 use zenoh::{Config, time::Timestamp};
 
 use crate::generated::detections_generated::root_as_frame;
-use crate::generated::entity_generated;
+use crate::generated::world_generated;
 use crate::generated::{
     attitude_generated::attitude::root_as_attitude_packet, gimbal_generated::gimbal::root_as_state,
     position_generated::position::root_as_global_position_int,
@@ -161,6 +161,7 @@ async fn broadcast_entities<'a>(
     if let Some(detections) = frame.detections() {
         let mut fbb = FlatBufferBuilder::new();
 
+        // TODO modify entities to be placed in frames
         for det in detections {
             if let Some(pos) = mapping::map_detection(
                 &attitude,
@@ -174,7 +175,7 @@ async fn broadcast_entities<'a>(
             ) {
                 let metadata = det.metadata().map(|s| fbb.create_string(s));
                 let class_id = det.class_id().map(|s| fbb.create_string(s));
-                let pack = entity_generated::Entity::create(
+                let pack = world_generated::Entity::create(
                     &mut fbb,
                     &EntityArgs {
                         lat: pos[0],

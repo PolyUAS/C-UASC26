@@ -7,12 +7,12 @@ static CAM_TO_BODY: OnceLock<nalgebra::UnitQuaternion<f64>> = OnceLock::new();
 
 fn cam_to_body() -> &'static nalgebra::UnitQuaternion<f64> {
     CAM_TO_BODY.get_or_init(|| {
-        // nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0) // rotated detection frame
+        // nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0) // unrotated detection frame
         nalgebra::UnitQuaternion::from_euler_angles(
-            std::f64::consts::PI,
-            std::f64::consts::FRAC_PI_2, // pitched to point in x-y plane
+            std::f64::consts::PI,        // upside-down
+            std::f64::consts::FRAC_PI_2, // pitched to be parallel to x-unit-vec (straight out from drone pointing in xy plane)
             0.0,
-        ) // unrotated detection frame
+        ) // rotated detection frame
     })
 }
 
@@ -197,19 +197,6 @@ mod tests {
         let frame_w: u16 = 1920;
         let frame_h: u16 = 1080;
         fbb.reset();
-        let detection_offset = Detection::create(
-            &mut fbb,
-            &DetectionArgs {
-                ctr_x: frame_w / 2,
-                ctr_y: frame_h / 2,
-                width: 10,
-                height: 10,
-                class_id: None,
-                metadata: None,
-                confidence: 0.99,
-            },
-        );
-        fbb.finish(detection_offset, None);
         // Detection is a nested table, not a root — read it back via Frame instead
         fbb.reset();
         let det_offset = Detection::create(
@@ -235,6 +222,7 @@ mod tests {
                 metadata: None,
             },
         );
+
         fbb.finish(frame_offset, None);
         let buf = fbb.finished_data().to_vec();
         let frame = crate::generated::detections_generated::root_as_frame(&buf)
@@ -272,7 +260,9 @@ mod tests {
                     expected_lon - 2 < lon && lon < expected_lon + 2,
                     "Longitude should match drone position : lon = {lon}, expected = {expected_lon}"
                 );
-                println!("✅ Test passed: Projected exactly to drone position");
+                println!(
+                    "✅ Test passed: Projected exactly to drone position\n lat: {lat} ~=  expected: {expected_lat}, lon: {lon} ~= expected: {expected_lon}"
+                );
             }
             None => panic!("Straight-down center detection should not return None"),
         }
