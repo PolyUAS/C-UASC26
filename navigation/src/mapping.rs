@@ -253,11 +253,11 @@ mod tests {
         match result {
             Some([lat, lon]) => {
                 assert!(
-                    expected_lat - 2 < lat && lat < expected_lat + 2,
+                    (lat - expected_lat).abs() <= 1,
                     "Latitude should match drone position : lat = {lat}, expected = {expected_lat} "
                 );
                 assert!(
-                    expected_lon - 2 < lon && lon < expected_lon + 2,
+                    (lon - expected_lon).abs() <= 1,
                     "Longitude should match drone position : lon = {lon}, expected = {expected_lon}"
                 );
                 println!(

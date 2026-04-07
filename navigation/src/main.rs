@@ -188,7 +188,7 @@ async fn broadcast_entities<'a>(
                 );
 
                 fbb.finish(pack, None);
-                let payload = fbb.finished_data();
+                let payload = fbb.finished_data().to_vec();
 
                 let _ = publisher.put(payload).await; // TODO make this try to send over and over instead of wasting msg + compute
             }
