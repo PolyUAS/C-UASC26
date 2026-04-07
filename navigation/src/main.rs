@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use std::{error::Error, time::Duration};
 
 use flatbuffers::FlatBufferBuilder;
-use nalgebra::UnitQuaternion;
+
 use tokio::sync::RwLock;
 use zenoh::pubsub::Publisher;
 use zenoh::{Config, time::Timestamp};

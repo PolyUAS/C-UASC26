@@ -15,7 +15,3 @@ nalgebra = "0.34.2"
 [[bin]]
 name = "navigation"
 path = "src/main.rs"
-
-
-[profile.dev.package.faer]
-opt-level = 3
