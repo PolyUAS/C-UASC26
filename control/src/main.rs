@@ -22,6 +22,8 @@ mod missions;
 mod receiver_utils;
 mod telemetry;
 
+mod goto;
+
 use generated::*;
 
 use geofence::create_geofence_queryable;

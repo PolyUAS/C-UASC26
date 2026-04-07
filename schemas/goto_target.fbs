@@ -1,0 +1,16 @@
+table Pose {
+    hold_time: float32; //(seconds)
+    lat: int32;
+    lon: int32;
+    alt: float32;
+
+    acceptance_radius: float32; // (>= 0 meters) (if the sphere with this radius is hit, the waypoint counts as reached)
+    pass_radius: float32; // (>= 0 meters) 0 to pass through the WP, if > 0 radius to pass by WP
+
+    heading: float32;
+
+
+}
+
+
+root_type Pose;

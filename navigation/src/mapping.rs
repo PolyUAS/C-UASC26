@@ -7,8 +7,12 @@ static CAM_TO_BODY: OnceLock<nalgebra::UnitQuaternion<f64>> = OnceLock::new();
 
 fn cam_to_body() -> &'static nalgebra::UnitQuaternion<f64> {
     CAM_TO_BODY.get_or_init(|| {
-        nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0)
-        //nalgebra::UnitQuaternion::from_euler_angles(std::f64::consts::PI, 0.0, 0.0)
+        // nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0) // rotated detection frame
+        nalgebra::UnitQuaternion::from_euler_angles(
+            std::f64::consts::PI,
+            std::f64::consts::FRAC_PI_2, // pitched to point in x-y plane
+            0.0,
+        ) // unrotated detection frame
     })
 }
 
@@ -40,8 +44,6 @@ pub fn map_detection(
 ) -> Option<[i32; 2]> {
     let (body_q, cam_q) = pull_quaternions(&attitude, &gimbal_att);
 
-    let view_q = &body_q * &cam_q;
-
     let px = det.ctr_x(); // pixel x, 0 = left
     let py = det.ctr_y(); // pixel y, 0 = top
 
@@ -59,10 +61,14 @@ pub fn map_detection(
     let drone_lat = position.lat() as f64 * 1e-7;
     let drone_lon = position.lon() as f64 * 1e-7;
 
-    let r_cam_to_body = cam_to_body(); // TODO adjust to your mount
-    let ray_world = view_q * r_cam_to_body * ray_cam;
+    println!("drone lat/lon: {drone_lat}/{drone_lon}");
 
-    if ray_world.z <= 0.0 {
+    let r_cam_to_body = cam_to_body(); // TODO adjust to your mount
+    let ray_world = body_q * cam_q * r_cam_to_body * ray_cam;
+
+    println!("ray: {:?}", ray_world);
+
+    if ray_world.z >= 0.0 {
         return None;
     }
 
@@ -71,8 +77,13 @@ pub fn map_detection(
         body_q * nalgebra::Vector3::from(body_to_gimbal_mm.map(|x| x as f64 * 1e-3));
 
     let t = (drone_alt_mm / 1000.0 + gimbal_offset_vec.z) / (-ray_world.z);
-    let delta_north = t * ray_world.x - gimbal_offset_vec.x;
-    let delta_east = t * ray_world.y - gimbal_offset_vec.y;
+
+    println!("t = {t}");
+
+    let delta_north = gimbal_offset_vec.x + t * ray_world.x;
+    let delta_east = gimbal_offset_vec.y + t * ray_world.y;
+
+    println!("d_n: {delta_north}, d_e: {delta_east}");
 
     // Convert NED offsets to lat/lon deltas (flat Earth approximation)
     const EARTH_RADIUS_METERS: f64 = 6_371_000.0_f64; // meters
@@ -113,4 +124,165 @@ fn pull_quaternions(
     );
 
     (body_q, cam_q)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::generated::attitude_generated::attitude::{
+        AttitudePacket, AttitudePacketArgs, root_as_attitude_packet,
+    };
+    use crate::generated::detections_generated::{Detection, DetectionArgs, Frame, FrameArgs};
+    use crate::generated::gimbal_generated::gimbal::{State, StateArgs, root_as_state};
+    use crate::generated::position_generated::position::{
+        GlobalPositionInt, GlobalPositionIntArgs, root_as_global_position_int,
+    };
+    use flatbuffers::FlatBufferBuilder;
+
+    #[test]
+    fn test_straight_down_center_pixel() {
+        // === Setup Test Data ===
+
+        // 1. Drone attitude: perfectly level (roll=0, pitch=0), arbitrary yaw
+        let mut fbb = FlatBufferBuilder::new();
+        let attitude_packet = AttitudePacket::create(
+            &mut fbb,
+            &AttitudePacketArgs {
+                roll: 0.0,
+                pitch: 0.0,
+                yaw: 45.0,
+                vroll: 0.0,
+                vpitch: 0.0,
+                vyaw: 0.0,
+            },
+        );
+        fbb.finish(attitude_packet, None);
+        let buf = fbb.finished_data().to_vec();
+        let attitude = root_as_attitude_packet(&buf).expect("failed to deserialize attitude");
+
+        // 2. Gimbal attitude: looking straight down (pitch = -90°)
+        fbb.reset();
+        let gimbal_packet = State::create(
+            &mut fbb,
+            &StateArgs {
+                roll: 0.0,
+                pitch: -90.0,
+                yaw: 0.0,
+                zoom: 1.0,
+            },
+        );
+        fbb.finish(gimbal_packet, None);
+        let buf = fbb.finished_data().to_vec();
+        let gimbal_state = root_as_state(&buf).expect("failed to deserialize gimbal state");
+
+        // 3. Drone position
+        let drone_lat = 37.7749_f64;
+        let drone_lon = -122.4194_f64;
+        let drone_alt_mm: i32 = 10_000; // 10 meters above home
+
+        println!("input lat: {}", (drone_lat * 1e7) as i32);
+        println!("input lon: {}", (drone_lon * 1e7) as i32);
+
+        fbb.reset();
+        let position_packet = GlobalPositionInt::create(
+            &mut fbb,
+            &GlobalPositionIntArgs {
+                lat: (drone_lat * 1e7) as i32,
+                lon: (drone_lon * 1e7) as i32,
+                alt: drone_alt_mm,
+                vx: 0,
+                vy: 0,
+                vz: 0,
+                heading: 0,
+                alt_above_home: drone_alt_mm,
+            },
+        );
+        fbb.finish(position_packet, None);
+        let buf = fbb.finished_data().to_vec();
+        let position = root_as_global_position_int(&buf).expect("failed to deserialize position");
+
+        // 4. Detection: exactly center of frame
+        let frame_w: u16 = 1920;
+        let frame_h: u16 = 1080;
+        fbb.reset();
+        let detection_offset = Detection::create(
+            &mut fbb,
+            &DetectionArgs {
+                ctr_x: frame_w / 2,
+                ctr_y: frame_h / 2,
+                width: 10,
+                height: 10,
+                class_id: None,
+                metadata: None,
+                confidence: 0.99,
+            },
+        );
+        fbb.finish(detection_offset, None);
+        // Detection is a nested table, not a root — read it back via Frame instead
+        fbb.reset();
+        let det_offset = Detection::create(
+            &mut fbb,
+            &DetectionArgs {
+                ctr_x: frame_w / 2,
+                ctr_y: frame_h / 2,
+                width: 10,
+                height: 10,
+                class_id: None,
+                metadata: None,
+                confidence: 0.99,
+            },
+        );
+        // Build the detections vector, then the Frame root
+        let detections_vec = fbb.create_vector(&[det_offset]);
+        let frame_offset = Frame::create(
+            &mut fbb,
+            &FrameArgs {
+                width: frame_w,
+                height: frame_h,
+                detections: Some(detections_vec),
+                metadata: None,
+            },
+        );
+        fbb.finish(frame_offset, None);
+        let buf = fbb.finished_data().to_vec();
+        let frame = crate::generated::detections_generated::root_as_frame(&buf)
+            .expect("failed to deserialize frame");
+        let det = frame.detections().expect("frame has no detections").get(0);
+
+        // 5. Gimbal mount offset (camera is 15cm below IMU)
+        let body_to_gimbal_mm: [i32; 3] = [0, 0, -150];
+
+        // 6. Camera parameters
+        let geoproj_params = GeoprojectionCamParams::new(78.0, 52.0);
+
+        // === Execute ===
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            body_to_gimbal_mm,
+            frame_w,
+            frame_h,
+            &geoproj_params,
+        );
+
+        // === Assert ===
+        let expected_lat = (drone_lat * 1e7) as i32;
+        let expected_lon = (drone_lon * 1e7) as i32;
+        match result {
+            Some([lat, lon]) => {
+                assert!(
+                    expected_lat - 2 < lat && lat < expected_lat + 2,
+                    "Latitude should match drone position : lat = {lat}, expected = {expected_lat} "
+                );
+                assert!(
+                    expected_lon - 2 < lon && lon < expected_lon + 2,
+                    "Longitude should match drone position : lon = {lon}, expected = {expected_lon}"
+                );
+                println!("✅ Test passed: Projected exactly to drone position");
+            }
+            None => panic!("Straight-down center detection should not return None"),
+        }
+    }
 }
