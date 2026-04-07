@@ -36,8 +36,8 @@ pub async fn telemetry_loop<'a>(
         match vehicle.recv().await {
             Ok((header, msg)) => {
                 match msg {
-                    MavMessage::AHRS(data) => {}
-                    MavMessage::AHRS2(data) => {}
+                    // MavMessage::AHRS(data) => {}
+                    // MavMessage::AHRS2(data) => {}
                     MavMessage::ATTITUDE(data) => {
                         let root = AttitudePacket::create(
                             &mut builder,
@@ -71,7 +71,7 @@ pub async fn telemetry_loop<'a>(
                         let payload = builder.finished_data().to_vec();
                         let _ = battery_pub.put(payload).await;
                     }
-                    MavMessage::EKF_STATUS_REPORT(data) => {}
+                    // MavMessage::EKF_STATUS_REPORT(data) => {}
                     MavMessage::GLOBAL_POSITION_INT(data) => {
                         let root = GlobalPositionInt::create(
                             &mut builder,
@@ -90,8 +90,8 @@ pub async fn telemetry_loop<'a>(
                         let payload = builder.finished_data().to_vec();
                         position_pub.put(payload).await.ok();
                     }
-                    MavMessage::GPS2_RAW(data) => {}
-                    MavMessage::GPS_RAW_INT(data) => {}
+                    // MavMessage::GPS2_RAW(data) => {}
+                    // MavMessage::GPS_RAW_INT(data) => {}
                     MavMessage::HEARTBEAT(data) => {
                         let status_enum = match data.system_status {
                             mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE => {
@@ -137,23 +137,23 @@ pub async fn telemetry_loop<'a>(
                         let payload = builder.finished_data().to_vec();
                         heartbeat_pub.put(payload).await.ok();
                     }
-                    MavMessage::MCU_STATUS(data) => { /* Id: 11039 — ArduPilot-specific */ }
-                    MavMessage::MEMINFO(data) => { /* Id: 152 */ }
+                    // MavMessage::MCU_STATUS(data) => { /* Id: 11039 — ArduPilot-specific */ }
+                    // MavMessage::MEMINFO(data) => { /* Id: 152 */ }
                     MavMessage::MISSION_CURRENT(data) => {
                         data.seq;
                     }
-                    MavMessage::NAV_CONTROLLER_OUTPUT(data) => {}
-                    MavMessage::POWER_STATUS(data) => {}
-                    MavMessage::RAW_IMU(data) => { /* Id: 27 */ }
+                    // MavMessage::NAV_CONTROLLER_OUTPUT(data) => {}
+                    // MavMessage::POWER_STATUS(data) => {}
+                    // MavMessage::RAW_IMU(data) => { /* Id: 27 */ }
                     MavMessage::RC_CHANNELS(data) => {}
-                    MavMessage::SCALED_IMU2(data) => { /* Id: 116 */ }
-                    MavMessage::SCALED_PRESSURE(data) => { /* Id: 29 */ }
+                    // MavMessage::SCALED_IMU2(data) => { /* Id: 116 */ }
+                    // MavMessage::SCALED_PRESSURE(data) => { /* Id: 29 */ }
                     MavMessage::SERVO_OUTPUT_RAW(data) => {}
                     MavMessage::SYSTEM_TIME(data) => { /* Id: 2 */ }
-                    MavMessage::SYS_STATUS(data) => {}
-                    MavMessage::TERRAIN_REPORT(data) => {}
-                    MavMessage::VFR_HUD(data) => { /* Id: 74 */ }
-                    MavMessage::VIBRATION(data) => { /* Id: 241 */ }
+                    // MavMessage::SYS_STATUS(data) => {}
+                    // MavMessage::TERRAIN_REPORT(data) => {}
+                    // MavMessage::VFR_HUD(data) => { /* Id: 74 */ }
+                    // MavMessage::VIBRATION(data) => { /* Id: 241 */ }
                     _ => {
                         // Discover other messages
                         // println!(
