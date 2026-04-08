@@ -18,6 +18,7 @@ use zenoh::{self};
 mod generated;
 mod gimbal;
 mod telemetry;
+mod squidarm;
 
 use gimbal::create_gimbal_subscriber;
 use gimbal::spawn_gimbal_task;
@@ -27,6 +28,7 @@ use generated::attitude_generated;
 use generated::geofence_generated;
 use generated::gimbal_generated;
 use generated::position_generated;
+use generated::squidarm_generated;
 
 mod geofence;
 
