@@ -97,8 +97,17 @@
 
           default = self'.packages.demo;
 
-          reset_jetson_network = pkgs.writeShellApplication {
-            name = "reset_jetson_network";
+          jetson_set_dev_power = pkgs.writeShellApplication {
+            name = "jetson_set_dev_power";
+            runtimeInputs = [];
+
+            text = ''
+              sudo nvpmodel -m 2
+            '';
+          };
+
+          jetson_reset_network = pkgs.writeShellApplication {
+            name = "jetson_reset_network";
             runtimeInputs = [
 
             ];
@@ -121,7 +130,7 @@
 
             self'.packages.vision
 
-            self'.packages.reset_jetson_network
+            self'.packages.jetson_reset_network
             self'.packages.control
 
             pkgs.just
