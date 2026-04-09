@@ -8,6 +8,7 @@ use tokio::sync::broadcast::Receiver;
 use tokio::time::Instant;
 use tokio::time::timeout;
 
+// returns the message (from the bcrx) that matches the lambda's "true" condition, erroring if timeout occurs
 pub async fn recv_message_within<F>(
     dur: Duration,
     bc_rx: &mut Receiver<(MavHeader, MavMessage)>,
@@ -41,6 +42,7 @@ where
     }
 }
 
+// waits to receive the mavlink command's FC acceptance status, erroring on timeout
 pub async fn wait_for_cmd_status(
     timeout: Duration,
     sub: &mut Receiver<(MavHeader, MavMessage)>,
