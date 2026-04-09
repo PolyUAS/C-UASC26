@@ -7,17 +7,18 @@ dependencies = [
     "eclipse-zenoh>=1.7.1",
     "flatbuffers>=25.12.19",
     "opencv-python",                    # remove version pin
+    "ultralytics"
 
 ]
 
-[[tool.uv.index]]
-name = "jetson-ai-lab"
-url = "https://pypi.jetson-ai-lab.io/jp6/cu126"
-default = true
-
-
 [tool.uv.sources]
-opencv-python = { index = "jetson-ai-lab" }
+
+opencv-python = { index = "jetson-cu129"}
+
+[[tool.uv.index]]
+name = "jetson-cu129"
+url = "https://pypi.jetson-ai-lab.io/jp6/cu129/"
+explicit = true
 
 
 [project.scripts]
