@@ -1,9 +1,16 @@
+import os
 import time
 
 import cv2
+import torch
+import ultralytics
+
+print(ultralytics.checks())
+
+print(f"CUDA is available from torch? : {torch.cuda.is_available()}")
 
 print(cv2.__version__)
-print("cv2 File: " + cv2.__file__)
+
 print("CUDA devices:", cv2.cuda.getCudaEnabledDeviceCount())
 print("Build info:", cv2.getBuildInformation())
 
