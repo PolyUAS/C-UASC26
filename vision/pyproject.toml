@@ -9,9 +9,8 @@ dependencies = [
     "opencv-python",
     "ultralytics",
     "torch",
-    "torchvision"
-
-    # "onnxruntime-gpu",
+    "onnxruntime-gpu",
+    "torchvision",
 
 ]
 

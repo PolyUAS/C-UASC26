@@ -9,7 +9,7 @@
     simpledemo.url = "./simpledemo";
 
     vision-node.url = "./vision";
-
+    jetson_utils.url = "./jetson_utils";
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -78,18 +78,6 @@
 
           default = self'.packages.demo;
 
-          reset_jetson_network = pkgs.writeShellApplication {
-            name = "reset_jetson_network";
-            runtimeInputs = [
-
-            ];
-            text = ''
-                sudo ip addr flush dev enP8p1s0
-                sudo ip addr add 192.168.144.30/24 dev enP8p1s0
-                sudo ip link set enP8p1s0 up
-            '';
-          };
-
 
         };
 
@@ -103,7 +91,8 @@
 
             self'.packages.vision
 
-            self'.packages.reset_jetson_network
+
+            inputs.jetson_utils.packages.setup_weird_stuff
 
             pkgs.just
             pkgs.uv
