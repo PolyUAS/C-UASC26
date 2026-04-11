@@ -1,3 +1,5 @@
+include "attitude.fbs";
+
 namespace Heartbeat;
 
 
@@ -17,8 +19,10 @@ enum Status : byte {
 
 table HeartbeatHealthPacket {
     system_status:Status;
-
-
+    guided:bool;
+    auto:bool;
+    manual:bool;
+    armed:bool;
 }
 
 

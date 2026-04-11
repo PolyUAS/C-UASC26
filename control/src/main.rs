@@ -1,9 +1,10 @@
 use crate::gimbal_utils::spawn_gimbal_task;
-use crate::goto::initialize_movement_subscriber;
+use crate::goto::create_movement_subscriber;
 use mavlink::AsyncMavConnection;
 use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::MavMessage;
+use mavlink::ardupilotmega::MavModeFlag;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -24,6 +25,8 @@ mod receiver_utils;
 mod telemetry;
 
 mod goto;
+
+mod heartbeat;
 
 use generated::*;
 
@@ -92,11 +95,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // In a dedicated task:
     spawn_gimbal_task(shared_camera.clone(), gimbal_rx.clone(), &session);
-    let goto_sub = initialize_movement_subscriber(session.clone(), vehicle.clone()).await;
+    let goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
 
     let running_telem = running.clone(); // assuming running: Arc<AtomicBool> or similar
+
+    let heartbeat_handle = heartbeat::create_heartbeat_advertiser(running.clone(), vehicle.clone());
 
     let telem_handle = tokio::spawn({
         let mut telem_rx = bc_tx.subscribe(); // cheap, can move in directly
@@ -130,8 +135,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Join threads
 
-    let tup = tokio::join!(telem_handle);
+    let tup = tokio::join!(telem_handle, heartbeat_handle);
     tup.0.ok();
+    tup.1.ok();
 
     session
         .close()

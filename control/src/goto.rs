@@ -1,8 +1,5 @@
-use mavlink::{
-    ardupilotmega::{COMMAND_INT_DATA, GLOBAL_POSITION_INT_DATA, MavCmd, MavFrame, MavMessage},
-    common::SET_POSITION_TARGET_GLOBAL_INT_DATA,
-};
-use zenoh::{Session, handlers::Callback, pubsub::Subscriber, sample::Sample};
+use mavlink::ardupilotmega::{MavCmd, MavFrame, MavMessage};
+use zenoh::{Session, pubsub::Subscriber};
 
 use crate::{
     SharedAsyncMavConn,
@@ -12,7 +9,7 @@ use crate::{
     },
 };
 
-pub async fn initialize_movement_subscriber(
+pub async fn create_movement_subscriber(
     session: Session,
     conn: SharedAsyncMavConn,
 ) -> Option<Subscriber<()>> {

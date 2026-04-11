@@ -1,9 +1,11 @@
+use flatbuffers::bitflags::Flags;
 use flatbuffers::{self, FlatBufferBuilder};
 
 use mavlink::MavHeader;
 
-use mavlink::ardupilotmega::MavMessage;
+use mavlink::ardupilotmega::{MavAutopilot, MavMessage, MavModeFlag};
 
+use mavlink::common::MANUAL_CONTROL_DATA;
 use tokio::sync::broadcast::Receiver;
 use zenoh::pubsub::Publisher;
 
@@ -93,6 +95,13 @@ pub async fn telemetry_loop<'a>(
                     // MavMessage::GPS2_RAW(data) => {}
                     // MavMessage::GPS_RAW_INT(data) => {}
                     MavMessage::HEARTBEAT(data) => {
+                        let mode = &data.base_mode;
+
+                        let auto = mode.contains(MavModeFlag::MAV_MODE_FLAG_AUTO_ENABLED);
+                        let guided = mode.contains(MavModeFlag::MAV_MODE_FLAG_GUIDED_ENABLED);
+                        let manual = mode.contains(MavModeFlag::MAV_MODE_FLAG_MANUAL_INPUT_ENABLED);
+                        let armed = mode.contains(MavModeFlag::MAV_MODE_FLAG_SAFETY_ARMED);
+
                         let status_enum = match data.system_status {
                             mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE => {
                                 heartbeat_generated::heartbeat::Status::Active
@@ -127,6 +136,10 @@ pub async fn telemetry_loop<'a>(
                             &mut builder,
                             &heartbeat_generated::heartbeat::HeartbeatHealthPacketArgs {
                                 system_status: status_enum,
+                                auto: auto,
+                                guided: guided,
+                                manual: manual,
+                                armed: armed,
                             },
                         );
                         match data.autopilot {
