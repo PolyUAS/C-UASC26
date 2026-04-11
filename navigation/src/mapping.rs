@@ -1,6 +1,6 @@
 use std::f64::{self};
 
-use nalgebra::UnitQuaternion;
+use nalgebra::{UnitQuaternion, Vector3};
 
 use std::sync::OnceLock;
 static CAM_TO_BODY: OnceLock<nalgebra::UnitQuaternion<f64>> = OnceLock::new();
@@ -103,11 +103,9 @@ fn pull_quaternions(
     let body_pitch_rads = (att.pitch() as f64).to_radians(); // b
     let body_yaw_rads = (att.yaw() as f64).to_radians(); // a
 
-    let body_q = nalgebra::UnitQuaternion::from_euler_angles(
-        body_roll_rads as f64,
-        body_pitch_rads as f64,
-        body_yaw_rads as f64,
-    );
+    let body_q = UnitQuaternion::from_axis_angle(&Vector3::z_axis(), body_yaw_rads)
+        * UnitQuaternion::from_axis_angle(&Vector3::y_axis(), body_pitch_rads)
+        * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), body_roll_rads);
 
     let (gimbal_roll_rads, gimbal_pitch_rads, gimbal_yaw_rads) = (
         (gim.roll() as f64).to_radians(),
