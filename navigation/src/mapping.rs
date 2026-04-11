@@ -1,18 +1,20 @@
-use std::f64;
+use std::f64::{self, consts::FRAC_PI_2};
 
 use nalgebra::{Quaternion, UnitQuaternion};
 
 use std::sync::OnceLock;
 static CAM_TO_BODY: OnceLock<nalgebra::UnitQuaternion<f64>> = OnceLock::new();
 
+pub const EPSILON_DEG_E7: i32 = 6000;
+
 fn cam_to_body() -> &'static nalgebra::UnitQuaternion<f64> {
     CAM_TO_BODY.get_or_init(|| {
         // nalgebra::UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0) // unrotated detection frame
         nalgebra::UnitQuaternion::from_euler_angles(
-            std::f64::consts::PI,        // upside-down
+            0.0,                         // upside-down
             std::f64::consts::FRAC_PI_2, // pitched to be parallel to x-unit-vec (straight out from drone pointing in xy plane)
             0.0,
-        ) // rotated detection frame
+        ) * nalgebra::UnitQuaternion::from_euler_angles(std::f64::consts::PI, 0.0, 0.0) // rotated detection frame
     })
 }
 
@@ -58,13 +60,18 @@ pub fn map_detection(
 
     let drone_alt_mm = position.alt_above_home() as f64;
 
+    if drone_alt_mm <= 0.0 {
+        return None;
+    }
+
     let drone_lat = position.lat() as f64 * 1e-7;
     let drone_lon = position.lon() as f64 * 1e-7;
 
     let r_cam_to_body = cam_to_body(); // TODO adjust to your mount
     let ray_world = body_q * cam_q * r_cam_to_body * ray_cam;
 
-    if ray_world.z >= 0.0 {
+    // above-horizon handling
+    if ray_world.z >= -1e-6 {
         return None;
     }
 
@@ -83,6 +90,8 @@ pub fn map_detection(
 
     let delta_lat = (delta_north / EARTH_RADIUS_METERS).to_degrees();
     let delta_lon = (delta_east / (EARTH_RADIUS_METERS * lat_rad.cos())).to_degrees();
+
+    println!("delta lat/lon: {delta_lat}  /  {delta_lon}");
 
     Some([
         ((drone_lat + delta_lat) * 1e7) as i32,
@@ -129,8 +138,97 @@ mod tests {
     use crate::generated::position_generated::position::{
         GlobalPositionInt, GlobalPositionIntArgs, root_as_global_position_int,
     };
+    use crate::root_as_frame;
     use flatbuffers::FlatBufferBuilder;
 
+    // ─── helpers ────────────────────────────────────────────────────────────────
+
+    fn make_attitude(roll: f32, pitch: f32, yaw: f32) -> Vec<u8> {
+        let mut fbb = FlatBufferBuilder::new();
+        let pkt = AttitudePacket::create(
+            &mut fbb,
+            &AttitudePacketArgs {
+                roll,
+                pitch,
+                yaw,
+                vroll: 0.0,
+                vpitch: 0.0,
+                vyaw: 0.0,
+            },
+        );
+        fbb.finish(pkt, None);
+        fbb.finished_data().to_vec()
+    }
+
+    fn make_gimbal(roll: f32, pitch: f32, yaw: f32) -> Vec<u8> {
+        let mut fbb = FlatBufferBuilder::new();
+        let pkt = State::create(
+            &mut fbb,
+            &StateArgs {
+                roll,
+                pitch,
+                yaw,
+                zoom: 1.0,
+            },
+        );
+        fbb.finish(pkt, None);
+        fbb.finished_data().to_vec()
+    }
+
+    fn make_position(lat_deg: f64, lon_deg: f64, alt_mm: i32) -> Vec<u8> {
+        let mut fbb = FlatBufferBuilder::new();
+        let pkt = GlobalPositionInt::create(
+            &mut fbb,
+            &GlobalPositionIntArgs {
+                lat: (lat_deg * 1e7) as i32,
+                lon: (lon_deg * 1e7) as i32,
+                alt: alt_mm,
+                vx: 0,
+                vy: 0,
+                vz: 0,
+                heading: 0,
+                alt_above_home: alt_mm,
+            },
+        );
+        fbb.finish(pkt, None);
+        fbb.finished_data().to_vec()
+    }
+
+    fn make_frame_detection(frame_w: u16, frame_h: u16, ctr_x: u16, ctr_y: u16) -> Vec<u8> {
+        let mut fbb = FlatBufferBuilder::new();
+        let det = Detection::create(
+            &mut fbb,
+            &DetectionArgs {
+                ctr_x,
+                ctr_y,
+                width: 10,
+                height: 10,
+                class_id: None,
+                metadata: None,
+                confidence: 0.99,
+            },
+        );
+        let dets = fbb.create_vector(&[det]);
+        let frame = Frame::create(
+            &mut fbb,
+            &FrameArgs {
+                width: frame_w,
+                height: frame_h,
+                detections: Some(dets),
+                metadata: None,
+            },
+        );
+        fbb.finish(frame, None);
+        fbb.finished_data().to_vec()
+    }
+
+    fn default_params() -> GeoprojectionCamParams {
+        GeoprojectionCamParams::new(78.0, 52.0)
+    }
+
+    // ─── tests ───────────────────────────────────────────────────────────────────
+
+    /// Straight down, center pixel → result must equal drone position.
     #[test]
     fn test_straight_down_center_pixel() {
         // === Setup Test Data ===
@@ -260,11 +358,91 @@ mod tests {
                     (lon - expected_lon).abs() <= 1,
                     "Longitude should match drone position : lon = {lon}, expected = {expected_lon}"
                 );
-                println!(
-                    "✅ Test passed: Projected exactly to drone position\n lat: {lat} ~=  expected: {expected_lat}, lon: {lon} ~= expected: {expected_lon}"
-                );
             }
             None => panic!("Straight-down center detection should not return None"),
         }
+    }
+
+    // ── Location diversity ─────────────────────────────────────────────────────
+    /// Equator crossing — straight down, center pixel must match drone position.
+    #[test]
+    fn test_equator_straight_down() {
+        let drone_lat = 0.0_f64;
+        let drone_lon = 36.8219_f64; // Nairobi longitude
+
+        let att_buf = make_attitude(0.0, 0.0, 0.0);
+        let gim_buf = make_gimbal(0.0, -90.0, 0.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 20_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        )
+        .expect("equator straight-down should project");
+
+        let expected_lat = (drone_lat * 1e7) as i32;
+        let expected_lon = (drone_lon * 1e7) as i32;
+        assert!(
+            (result[0] - expected_lat).abs() <= 1,
+            "lat mismatch at equator"
+        );
+        assert!(
+            (result[1] - expected_lon).abs() <= 1,
+            "lon mismatch at equator"
+        );
+    }
+
+    /// Negative longitude (western hemisphere) — straight down, center pixel.
+    #[test]
+    fn test_sydney_straight_down() {
+        let drone_lat = -33.8688_f64; // Sydney
+        let drone_lon = 151.2093_f64;
+
+        let att_buf = make_attitude(0.0, 0.0, 0.0);
+        let gim_buf = make_gimbal(0.0, -90.0, 0.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 30_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        )
+        .expect("Sydney straight-down should project");
+
+        let expected_lat = (drone_lat * 1e7) as i32;
+        let expected_lon = (drone_lon * 1e7) as i32;
+        assert!(
+            (result[0] - expected_lat).abs() <= 1,
+            "lat mismatch at Sydney"
+        );
+        assert!(
+            (result[1] - expected_lon).abs() <= 1,
+            "lon mismatch at Sydney"
+        );
     }
 }
