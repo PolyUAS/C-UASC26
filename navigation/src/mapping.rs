@@ -476,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn test_45p_basic_north() {
+    fn test_45p_gimbal_north() {
         let drone_lat = -33.8688_f64; // Sydney
         let drone_lon = 151.2093_f64;
 
@@ -521,7 +521,7 @@ mod tests {
     }
 
     #[test]
-    fn test_45p_90y_basic_east() {
+    fn test_45p_90y_gimbal_east() {
         let drone_lat = -33.8688_f64; // Sydney
         let drone_lon = 151.2093_f64;
 
@@ -560,7 +560,97 @@ mod tests {
             );
             assert!(
                 (lat - drone_lat_e7).abs() <= 1,
-                "latgitude moved: lat: {lat}, lat_e7: {drone_lat_e7}"
+                "latitude moved: lat: {lat}, lat_e7: {drone_lat_e7}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_45p_basic_east() {
+        let drone_lat = -33.8688_f64; // Sydney
+        let drone_lon = 151.2093_f64;
+
+        let att_buf = make_attitude(0.0, 45.0, 0.0);
+        let gim_buf = make_gimbal(0.0, 0.0, 0.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 30_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        );
+
+        let drone_lat_e7 = (drone_lat * 1e7) as i32;
+        let drone_lon_e7 = (drone_lon * 1e7) as i32;
+
+        if let Some(result) = result {
+            let lat = result[0];
+            let lon = result[1];
+
+            assert!(
+                lon > drone_lon_e7,
+                "result: lon: {lon} <= lon_e7 {drone_lon_e7}, but this should not be the case."
+            );
+            assert!(
+                (lat - drone_lat_e7).abs() <= 1,
+                "latitude moved: lat: {lat}, lat_e7: {drone_lat_e7}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_45p_90y_basic_east() {
+        let drone_lat = -33.8688_f64; // Sydney
+        let drone_lon = 151.2093_f64;
+
+        let att_buf = make_attitude(0.0, 45.0, 90.0);
+        let gim_buf = make_gimbal(0.0, 0.0, 0.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 30_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        );
+
+        let drone_lat_e7 = (drone_lat * 1e7) as i32;
+        let drone_lon_e7 = (drone_lon * 1e7) as i32;
+
+        if let Some(result) = result {
+            let lat = result[0];
+            let lon = result[1];
+
+            assert!(
+                lon > drone_lon_e7,
+                "result: lon: {lon} <= lon_e7 {drone_lon_e7}, but this should not be the case."
+            );
+            assert!(
+                (lat - drone_lat_e7).abs() <= 1,
+                "latitude moved: lat: {lat}, lat_e7: {drone_lat_e7}"
             );
         }
     }
