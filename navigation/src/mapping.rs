@@ -1,11 +1,9 @@
-use std::f64::{self, consts::FRAC_PI_2};
+use std::f64::{self};
 
-use nalgebra::{Quaternion, UnitQuaternion};
+use nalgebra::UnitQuaternion;
 
 use std::sync::OnceLock;
 static CAM_TO_BODY: OnceLock<nalgebra::UnitQuaternion<f64>> = OnceLock::new();
-
-pub const EPSILON_DEG_E7: i32 = 6000;
 
 fn cam_to_body() -> &'static nalgebra::UnitQuaternion<f64> {
     CAM_TO_BODY.get_or_init(|| {
@@ -49,7 +47,7 @@ pub fn map_detection(
     let px = det.ctr_x(); // pixel x, 0 = left
     let py = det.ctr_y(); // pixel y, 0 = top
 
-    let f_px = (frame_w as f64 / 2.0) / (geoproj_params.hfov_deg as f64 / 2.0).to_radians().tan();
+    let f_px = (frame_w as f64 / 2.0) / (geoproj_params.hfov_deg as f64 / 2.0).to_radians().tan(); // get focal vector
 
     // Normalised offsets from principal point (centre of image)
     let dx = px as f64 - frame_w as f64 / 2.0; // + = right
@@ -90,8 +88,6 @@ pub fn map_detection(
 
     let delta_lat = (delta_north / EARTH_RADIUS_METERS).to_degrees();
     let delta_lon = (delta_east / (EARTH_RADIUS_METERS * lat_rad.cos())).to_degrees();
-
-    println!("delta lat/lon: {delta_lat}  /  {delta_lon}");
 
     Some([
         ((drone_lat + delta_lat) * 1e7) as i32,
@@ -444,5 +440,128 @@ mod tests {
             (result[1] - expected_lon).abs() <= 1,
             "lon mismatch at Sydney"
         );
+    }
+
+    #[test]
+    fn test_horizon_none() {
+        let drone_lat = -33.8688_f64; // Sydney
+        let drone_lon = 151.2093_f64;
+
+        let att_buf = make_attitude(0.0, 0.0, 0.0);
+        let gim_buf = make_gimbal(0.0, 0.0, 0.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 30_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        );
+
+        assert!(
+            result == None,
+            "horizontal camera should not map to a value."
+        );
+    }
+
+    #[test]
+    fn test_45p_basic_north() {
+        let drone_lat = -33.8688_f64; // Sydney
+        let drone_lon = 151.2093_f64;
+
+        let att_buf = make_attitude(0.0, 0.0, 0.0);
+        let gim_buf = make_gimbal(0.0, 45.0, 0.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 30_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        );
+
+        let drone_lat_e7 = (drone_lat * 1e7) as i32;
+        let drone_lon_e7 = (drone_lon * 1e7) as i32;
+
+        if let Some(result) = result {
+            let lat = result[0];
+            let lon = result[1];
+
+            assert!(
+                lat > drone_lat_e7,
+                "result: lat: {lat} <= lat_e7 {drone_lat_e7}, but this should not be the case."
+            );
+            assert!(
+                (lon - drone_lon_e7).abs() <= 1,
+                "longitude moved: lon: {lon}, lon_e7: {drone_lon_e7}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_45p_90y_basic_east() {
+        let drone_lat = -33.8688_f64; // Sydney
+        let drone_lon = 151.2093_f64;
+
+        let att_buf = make_attitude(0.0, 0.0, 0.0);
+        let gim_buf = make_gimbal(0.0, 45.0, 90.0);
+        let pos_buf = make_position(drone_lat, drone_lon, 30_000);
+        let frm_buf = make_frame_detection(1920, 1080, 960, 540);
+
+        let attitude = root_as_attitude_packet(&att_buf).unwrap();
+        let gimbal_state = root_as_state(&gim_buf).unwrap();
+        let position = root_as_global_position_int(&pos_buf).unwrap();
+        let frame = root_as_frame(&frm_buf).unwrap();
+        let det = frame.detections().unwrap().get(0);
+
+        let result = map_detection(
+            &attitude,
+            &position,
+            &det,
+            &gimbal_state,
+            [0, 0, -150],
+            1920,
+            1080,
+            &default_params(),
+        );
+
+        let drone_lat_e7 = (drone_lat * 1e7) as i32;
+        let drone_lon_e7 = (drone_lon * 1e7) as i32;
+
+        if let Some(result) = result {
+            let lat = result[0];
+            let lon = result[1];
+
+            assert!(
+                lon > drone_lon_e7,
+                "result: lon: {lon} <= lon_e7 {drone_lon_e7}, but this should not be the case."
+            );
+            assert!(
+                (lat - drone_lat_e7).abs() <= 1,
+                "latgitude moved: lat: {lat}, lat_e7: {drone_lat_e7}"
+            );
+        }
     }
 }
