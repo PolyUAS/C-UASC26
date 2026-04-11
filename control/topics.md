@@ -15,7 +15,7 @@
 
 # INPUTS
 - [x] control/in/gimbal => gimbal.fbs
-- [ ] control/in/target_pos => waypoint.fbs
+- [x ] control/in/target_pos => waypoint.fbs
 - [ ] 
 
 

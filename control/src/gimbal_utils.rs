@@ -103,12 +103,14 @@ pub async fn create_gimbal_subscriber(
         .declare_subscriber("control/in/gimbal")
         .callback(move |sample| {
             let bytes = sample.payload().to_bytes(); // &[u8]
-            let gimbal_packet = gimbal_generated::gimbal::root_as_state(bytes.as_ref()).unwrap();
-
-            let pitch = gimbal_packet.pitch();
-            let yaw = gimbal_packet.yaw();
-            let zoom = gimbal_packet.zoom();
-            gimbal_tx.send((yaw, pitch, zoom)).ok();
+            let gimbal_packet = gimbal_generated::gimbal::root_as_state(bytes.as_ref()).ok();
+            if let Some(gimbal_packet) = gimbal_packet {
+                // shadowing
+                let pitch = gimbal_packet.pitch();
+                let yaw = gimbal_packet.yaw();
+                let zoom = gimbal_packet.zoom();
+                gimbal_tx.send((yaw, pitch, zoom)).ok();
+            }
         })
         .await
         .ok()
