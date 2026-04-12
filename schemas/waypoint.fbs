@@ -3,6 +3,17 @@
 namespace waypoint;
 
 
+enum FrameType: short {
+    GLOBAL,
+    GLOBAL_RELATIVE_ALT,
+    LOCAL_NED,
+    LOCAL_ENU,
+    LOCAL_OFFSET_NED,
+    GLOBAL_TERRAIN_ALT,
+    BODY_FRD
+}
+
+
 table Waypoint {
     hold_time: float32; //(seconds)
     lat: int32;
@@ -13,7 +24,7 @@ table Waypoint {
     pass_radius: float32; // (>= 0 meters) 0 to pass through the WP, if > 0 radius to pass by WP
 
     heading: float32;
-
+    frame: FrameType;
 }
 
 

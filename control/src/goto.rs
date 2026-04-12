@@ -4,9 +4,7 @@ use zenoh::{Session, pubsub::Subscriber};
 use crate::{
     SharedAsyncMavConn,
     fc_header_utils::get_headers,
-    generated::{
-        waypoint_generated::waypoint::Waypoint, waypoint_generated::waypoint::root_as_waypoint,
-    },
+    generated::waypoint_generated::waypoint::{self, Waypoint, root_as_waypoint},
 };
 
 pub async fn create_movement_subscriber(
@@ -36,6 +34,16 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
     if let Some(sys) = sys
         && let Some(comp) = comp
     {
+        let frame = match target.frame() {
+            waypoint::FrameType::GLOBAL => MavFrame::MAV_FRAME_GLOBAL,
+            waypoint::FrameType::BODY_FRD => MavFrame::MAV_FRAME_BODY_FRD,
+            waypoint::FrameType::GLOBAL_RELATIVE_ALT => MavFrame::MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            waypoint::FrameType::LOCAL_ENU => MavFrame::MAV_FRAME_LOCAL_ENU,
+            waypoint::FrameType::LOCAL_NED => MavFrame::MAV_FRAME_LOCAL_NED,
+            waypoint::FrameType::GLOBAL_TERRAIN_ALT => MavFrame::MAV_FRAME_GLOBAL_TERRAIN_ALT,
+            _ => MavFrame::MAV_FRAME_GLOBAL_RELATIVE_ALT,
+        };
+
         let res = conn
             .send_default(&MavMessage::COMMAND_INT(
                 mavlink::ardupilotmega::COMMAND_INT_DATA {
@@ -49,7 +57,7 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
                     command: MavCmd::MAV_CMD_NAV_WAYPOINT,
                     target_system: sys,
                     target_component: comp,
-                    frame: MavFrame::MAV_FRAME_GLOBAL,
+                    frame: frame,
                     current: 0,
                     autocontinue: 0,
                 },
