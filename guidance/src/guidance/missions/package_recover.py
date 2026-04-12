@@ -1,6 +1,6 @@
 from enum import Enum
 
-from guidance.missionFSM import StateMachineBaseClass
+from guidance.missionFSM import AbstractFSMMetaclass
 
 
 class PackageOpsMode(Enum):
@@ -9,7 +9,7 @@ class PackageOpsMode(Enum):
     RECOVERY = "recovery"
 
 
-class PackageOpsFSM(StateMachineBaseClass):
+class PackageOpsFSM(AbstractFSMMetaclass):
     class State(Enum):
         TARGET_ASSIGN = "target_assign"
         APPROACH = "approach"
