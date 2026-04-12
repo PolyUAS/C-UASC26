@@ -4,7 +4,6 @@ use mavlink::AsyncMavConnection;
 use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::MavMessage;
-use mavlink::ardupilotmega::MavModeFlag;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -95,7 +94,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // In a dedicated task:
     spawn_gimbal_task(shared_camera.clone(), gimbal_rx.clone(), &session);
-    let goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
+    let _goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
 

@@ -23,6 +23,7 @@ use crate::generated::{
 
 pub struct GeoprojectionCamParams {
     hfov_deg: f32,
+    #[allow(unused)]
     vfov_deg: f32,
 }
 

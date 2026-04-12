@@ -3,9 +3,8 @@ use flatbuffers::{self, FlatBufferBuilder};
 
 use mavlink::MavHeader;
 
-use mavlink::ardupilotmega::{MavAutopilot, MavMessage, MavModeFlag};
+use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
 
-use mavlink::common::MANUAL_CONTROL_DATA;
 use tokio::sync::broadcast::Receiver;
 use zenoh::pubsub::Publisher;
 
@@ -36,7 +35,7 @@ pub async fn telemetry_loop<'a>(
     let mut builder = FlatBufferBuilder::new();
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
-            Ok((header, msg)) => {
+            Ok((_header, msg)) => {
                 match msg {
                     // MavMessage::AHRS(data) => {}
                     // MavMessage::AHRS2(data) => {}

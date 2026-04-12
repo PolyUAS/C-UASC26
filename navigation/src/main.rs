@@ -114,6 +114,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                 begin = now;
             } else {
+                #[allow(unused)]
                 if let (Some(frame), Some(position), Some(attitude), Some(gimbal)) = (
                     &state.frame,
                     &state.position,

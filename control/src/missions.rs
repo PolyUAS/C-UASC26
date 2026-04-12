@@ -46,7 +46,7 @@ pub async fn get_missions(
     .ok();
 
     let mission_count = match count_packet {
-        Some(MavMessage::MISSION_COUNT((data))) => Some(data.count),
+        Some(MavMessage::MISSION_COUNT(data)) => Some(data.count),
         _ => None,
     };
 
