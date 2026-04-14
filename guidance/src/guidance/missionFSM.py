@@ -11,23 +11,20 @@ class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
 
 
 class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
-    IDLE = State(initial=True)
-    PREFLIGHT = State()
-    TAKEOFF = State()
-    EXECUTING = State()  # transitive state. Hands off to subclass
-    RTL = State()
-    LANDING = State()
+    INIT = State(initial=True)
+    LAUNCH = State()
+
+    ############################################
+    # Things go here in non-abstract classes
+    ############################################
+
     COMPLETE = State(final=True)
-    ABORTED = State(final=True)
-    EMERGENCY = State()
+    LAND = State()
+    RETURN_TO_HOME = State()
 
-    initialize = IDLE.to(PREFLIGHT)
-    launch = PREFLIGHT.to(TAKEOFF)
-
-    finish = LANDING.to(COMPLETE)
-    EMERGENCY.to(RTL)
-
-    RTL.to(ABORTED, COMPLETE)
+    INIT.to(LAUNCH)
+    RETURN_TO_HOME.to(LAND)
+    LAND.to(COMPLETE)
 
     geofence: list[Coords] = []
 

@@ -8,9 +8,9 @@ pub mod waypoint {
 
 
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_FRAME_TYPE: i16 = 0;
+pub const ENUM_MIN_FRAME_TYPE: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_FRAME_TYPE: i16 = 6;
+pub const ENUM_MAX_FRAME_TYPE: u8 = 6;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
 pub const ENUM_VALUES_FRAME_TYPE: [FrameType; 7] = [
@@ -25,7 +25,7 @@ pub const ENUM_VALUES_FRAME_TYPE: [FrameType; 7] = [
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
-pub struct FrameType(pub i16);
+pub struct FrameType(pub u8);
 #[allow(non_upper_case_globals)]
 impl FrameType {
   pub const GLOBAL: Self = Self(0);
@@ -36,8 +36,8 @@ impl FrameType {
   pub const GLOBAL_TERRAIN_ALT: Self = Self(5);
   pub const BODY_FRD: Self = Self(6);
 
-  pub const ENUM_MIN: i16 = 0;
-  pub const ENUM_MAX: i16 = 6;
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 6;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::GLOBAL,
     Self::GLOBAL_RELATIVE_ALT,
@@ -74,7 +74,7 @@ impl<'a> ::flatbuffers::Follow<'a> for FrameType {
   type Inner = Self;
   #[inline]
   unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    let b = unsafe { ::flatbuffers::read_scalar_at::<i16>(buf, loc) };
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
     Self(b)
   }
 }
@@ -83,20 +83,20 @@ impl ::flatbuffers::Push for FrameType {
     type Output = FrameType;
     #[inline]
     unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i16>(dst, self.0) };
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
     }
 }
 
 impl ::flatbuffers::EndianScalar for FrameType {
-  type Scalar = i16;
+  type Scalar = u8;
   #[inline]
-  fn to_little_endian(self) -> i16 {
+  fn to_little_endian(self) -> u8 {
     self.0.to_le()
   }
   #[inline]
   #[allow(clippy::wrong_self_convention)]
-  fn from_little_endian(v: i16) -> Self {
-    let b = i16::from_le(v);
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
     Self(b)
   }
 }
@@ -106,7 +106,7 @@ impl<'a> ::flatbuffers::Verifiable for FrameType {
   fn run_verifier(
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    i16::run_verifier(v, pos)
+    u8::run_verifier(v, pos)
   }
 }
 

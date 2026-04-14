@@ -3,7 +3,7 @@
 namespace waypoint;
 
 
-enum FrameType: short {
+enum FrameType: ubyte {
     GLOBAL,
     GLOBAL_RELATIVE_ALT,
     LOCAL_NED,
