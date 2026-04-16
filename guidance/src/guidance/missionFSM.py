@@ -1,6 +1,6 @@
 from abc import ABC, ABCMeta
 
-import flatbuffers.builder
+import flatbuffers
 from statemachine import State, StateMachine
 from zenoh import Session
 
