@@ -1,26 +1,65 @@
 use crate::{SharedAsyncMavConn, generated::squidarm_generated::control_squid::root_as_squidarm};
 
-pub async fn _init_squidarm_subscriber(conn: SharedAsyncMavConn, session: &zenoh::Session) -> () {
-    let _ = session
+use mavlink::ardupilotmega::{COMMAND_LONG_DATA, MavCmd, MavMessage};
+use zenoh::{handlers, pubsub, sample};
+
+// NOTE: remove annotation once this function has been called.
+#[allow(unused, dead_code)]
+///
+/// # Aguments
+/// - `conn` A Connection to the flight controller over which servo package will be sent.
+/// - `session` a refrence to the universal zenoh session over which a the following
+///   subscriber will be declared "control/squidarm/"
+/// # Safety
+/// `conn` is a asummed to be a cloned value, Therefore only pass in a cloned value to `conn`
+/// into this function.
+///
+pub async fn init_squidarm(
+    conn: SharedAsyncMavConn,
+    session: &zenoh::Session,
+) -> pubsub::SubscriberBuilder<'_, '_, handlers::Callback<sample::Sample>> {
+    session
         .declare_subscriber("control/squidarm/")
         .callback(move |sample| {
             let data = sample.payload().to_bytes();
-            let result_squidarm = root_as_squidarm(data.as_ref());
-            match result_squidarm.ok() {
-                Some(squidarm) => {
-                    let x = squidarm.x();
-                    let y = squidarm.y();
+            let result_squidarm = root_as_squidarm(&data);
 
-                    let _ = do_something_with_x(x);
-                    let _ = do_something_with_y(y);
+            // return early if there is no squidarm
+            // justification: to Avoid deeply nested code
+            //  if an operation on failure should happen, Convert to a match statement,.
+            let Ok(squidarm) = result_squidarm else {
+                return;
+            };
+            // proceed as normal
+            let x = squidarm.x(); /* in miliseconds */
+            let y = squidarm.y(); /* in miliseconds */
 
-                    conn.send_default()
+            /* please refer to https://mavlink.io/en/messages/common.html#MAV_CMD_DO_SET_SERVO */
 
-                }
-                _ => {}
-            }
-        });
+            // Sends cmd to flight controller for x-axis.
+            conn.send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
+                param1: 1.0,
+                param2: x as f32, /* in miliseconds */
+                param3: 0.0,
+                param4: 0.0,
+                param5: 0.0,
+                param6: 0.0,
+                param7: 0.0,
+                command: MavCmd::MAV_CMD_DO_SET_SERVO,
+                ..Default::default()
+            }));
+
+            // Sends cmd to flight controller for y-axis.
+            conn.send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
+                param1: 1.0,
+                param2: y as f32, /* in miliseconds */
+                param3: 0.0,
+                param4: 0.0,
+                param5: 0.0,
+                param6: 0.0,
+                param7: 0.0,
+                command: MavCmd::MAV_CMD_DO_SET_SERVO,
+                ..Default::default()
+            }));
+        })
 }
-
-fn do_something_with_x(x: i32) -> i32 {}
-fn do_something_with_y(y: i32) -> i32 {}
