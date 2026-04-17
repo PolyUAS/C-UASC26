@@ -2,7 +2,11 @@ use crate::{SharedAsyncMavConn, generated::squidarm_generated::control_squid::ro
 
 use mavlink::ardupilotmega::{COMMAND_LONG_DATA, MavCmd, MavMessage};
 use zenoh::pubsub::Subscriber;
-// NOTE: remove annotation once this function has been called.
+// WARN: placeholder Values for actual pins
+const X_PIN: f32 = 0f32;
+const Y_PIN: f32 = 0f32;
+
+// NOTE:  remove annotation once this function has been called.
 #[allow(unused, dead_code)]
 ///
 /// # Aguments
@@ -34,7 +38,7 @@ pub async fn init_squidarm(conn: SharedAsyncMavConn, session: &zenoh::Session) -
 
             // Sends cmd to flight controller for x-axis.
             conn.send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
-                param1: 1.0,
+                param1: X_PIN,
                 param2: x as f32,
                 param3: 0.0,
                 param4: 0.0,
@@ -47,7 +51,7 @@ pub async fn init_squidarm(conn: SharedAsyncMavConn, session: &zenoh::Session) -
 
             // Sends cmd to flight controller for y-axis.
             conn.send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
-                param1: 1.0,
+                param1: Y_PIN,
                 param2: y as f32,
                 param3: 0.0,
                 param4: 0.0,
