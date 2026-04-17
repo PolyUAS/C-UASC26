@@ -1,8 +1,7 @@
 use crate::{SharedAsyncMavConn, generated::squidarm_generated::control_squid::root_as_squidarm};
 
 use mavlink::ardupilotmega::{COMMAND_LONG_DATA, MavCmd, MavMessage};
-use zenoh::{handlers, pubsub, sample};
-
+use zenoh::pubsub::Subscriber;
 // NOTE: remove annotation once this function has been called.
 #[allow(unused, dead_code)]
 ///
@@ -14,10 +13,7 @@ use zenoh::{handlers, pubsub, sample};
 /// `conn` is a asummed to be a cloned value, Therefore only pass in a cloned value to `conn`
 /// into this function.
 ///
-pub async fn init_squidarm(
-    conn: SharedAsyncMavConn,
-    session: &zenoh::Session,
-) -> pubsub::SubscriberBuilder<'_, '_, handlers::Callback<sample::Sample>> {
+pub async fn init_squidarm(conn: SharedAsyncMavConn, session: &zenoh::Session) -> Subscriber<()> {
     session
         .declare_subscriber("control/squidarm/")
         .callback(move |sample| {
@@ -31,15 +27,15 @@ pub async fn init_squidarm(
                 return;
             };
             // proceed as normal
-            let x = squidarm.x(); /* in miliseconds */
-            let y = squidarm.y(); /* in miliseconds */
+            let x = squidarm.x(); /* in microseconds */
+            let y = squidarm.y(); /* in microseconds */
 
             /* please refer to https://mavlink.io/en/messages/common.html#MAV_CMD_DO_SET_SERVO */
 
             // Sends cmd to flight controller for x-axis.
             conn.send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
                 param1: 1.0,
-                param2: x as f32, /* in miliseconds */
+                param2: x as f32,
                 param3: 0.0,
                 param4: 0.0,
                 param5: 0.0,
@@ -52,7 +48,7 @@ pub async fn init_squidarm(
             // Sends cmd to flight controller for y-axis.
             conn.send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
                 param1: 1.0,
-                param2: y as f32, /* in miliseconds */
+                param2: y as f32,
                 param3: 0.0,
                 param4: 0.0,
                 param5: 0.0,
@@ -62,4 +58,6 @@ pub async fn init_squidarm(
                 ..Default::default()
             }));
         })
+        .await
+        .expect("Squidarm should be avaliable.")
 }
