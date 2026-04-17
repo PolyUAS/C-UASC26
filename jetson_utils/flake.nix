@@ -70,6 +70,10 @@
               sudo ip addr flush dev enP8p1s0
               sudo ip addr add 192.168.144.30/24 dev enP8p1s0
               sudo ip link set enP8p1s0 up
+
+              sudo ufw allow ssh
+              sudo ufw allow 60000:61000/udp
+              sudo ufw enable
           '';
         };
 
