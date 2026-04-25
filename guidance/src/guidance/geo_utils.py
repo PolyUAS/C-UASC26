@@ -15,15 +15,15 @@ class Data_Waypoint:
     lon: int = 0
     alt: float = 0.0
 
-    def __init__(self, lat: int, lon: int, alt: float):
+    def __init__(self, lat_e7: int, lon_e7: int, alt_mm: float):
         """
         Waypoint class for convenience.
         If lat/lon are ints, they are degE7,
         Alt is always in mm.
         """
-        self.lat = lat
-        self.lon = lon
-        self.alt = alt
+        self.lat = lat_e7
+        self.lon = lon_e7
+        self.alt = alt_mm
 
     def to_deg(self) -> tuple[float, float, float]:
         """

@@ -67,7 +67,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         """
         Navigate to a waypoint with the given latitude, longitude, altitude, and heading.
 
-        waypoint lat + lon MUST BE in degE7
+        waypoint lat + lon MUST BE in degE7, and alt in mm
         """
         builder = flatbuffers.Builder(0)
 
