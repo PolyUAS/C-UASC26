@@ -2,8 +2,8 @@ namespace Control_Squid;
 
 
 table Squidarm{
-    x:int32; /* Time in miliseconds */
-    y:int32; /* Time in miliseconds */
+    x:uint32; /* Time in us */
+    y:uint32; /* Time in us */
 }
 
 

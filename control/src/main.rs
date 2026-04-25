@@ -17,8 +17,8 @@ use zenoh::{self};
 
 mod generated;
 mod gimbal;
-mod telemetry;
 mod squidarm;
+mod telemetry;
 
 use gimbal::create_gimbal_subscriber;
 use gimbal::spawn_gimbal_task;
@@ -28,11 +28,12 @@ use generated::attitude_generated;
 use generated::geofence_generated;
 use generated::gimbal_generated;
 use generated::position_generated;
-use generated::squidarm_generated;
 
 mod geofence;
 
 use geofence::create_geofence_queryable;
+
+use crate::squidarm::init_squidarm;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
@@ -104,6 +105,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let _geofence_query =
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
+
+    let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
