@@ -4,6 +4,7 @@ from abc import ABC, ABCMeta
 
 import flatbuffers
 from statemachine import State, StateMachine
+from statemachine.transition_list import TransitionList
 from zenoh import Session
 
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
@@ -29,9 +30,9 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     LAND = State()
     RETURN_TO_HOME = State()
 
-    INIT.to(LAUNCH)
-    RETURN_TO_HOME.to(LAND)
-    LAND.to(COMPLETE)
+    on_go: TransitionList = INIT.to(LAUNCH)
+    on_return: TransitionList = RETURN_TO_HOME.to(LAND)
+    on_finish: TransitionList = LAND.to(COMPLETE)
 
     geofence: list[Coords] = []
 
