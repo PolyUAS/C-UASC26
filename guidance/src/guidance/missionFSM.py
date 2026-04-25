@@ -1,6 +1,7 @@
 import asyncio
 import math
 from abc import ABC, ABCMeta
+from math import degrees
 
 import flatbuffers
 from statemachine import State, StateMachine
@@ -8,6 +9,7 @@ from statemachine.transition_list import TransitionList
 from zenoh import Session
 
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
+import guidance.generated.waypoint.FrameType as FrameTypeFB
 import guidance.generated.waypoint.Waypoint as WaypointFB
 from guidance.generated.Geofence.Coords import Coords
 from guidance.generated.Geofence.GeofencePacket import GeofencePacket
@@ -38,7 +40,11 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
     goto_lock = asyncio.Lock()
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, home: WaypointStruct):
+        """
+        Initializer for the FSM base class.
+        home must have an alt that is in the global frame.
+        """
         super().__init__()
         self.session = session
 
@@ -50,7 +56,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
     def set_geofence(self, packet: GeofencePacket):
         coords_len = packet.PointsLength()
-        if coords_len is not None:
+        if coords_len:  # guards against None and 0
             self.geofence = []
             for i in range(coords_len):
                 pt = packet.Points(i)
@@ -60,15 +66,20 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     async def navigate_waypoint(
         self,
         waypoint: WaypointStruct,
-        hdg: float,
-        a_rad: float,
+        a_rad: float,  # a_rad is in meters
+        frame: int = FrameTypeFB.FrameType.GLOBAL,
+        hdg: float = math.nan,
         hold_time: float = 1.0,
         timeout: float | None = 60.0,
-    ) -> None:
+    ) -> bool:
         """
-        Navigate to a waypoint with the given latitude, longitude, altitude, and heading.
+        Navigate to a waypoint (in ```frame```) with the given heading and acceptance radius.
+
+        returns: success value of the navigation command
 
         waypoint lat + lon MUST BE in degE7, and alt in mm
+        ```a_rad``` (acceptance radius) is in meters
+        ```hdg``` is in degrees (or ```math.nan``` for default)
         """
         builder = flatbuffers.Builder(0)
 
@@ -79,6 +90,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         WaypointFB.AddHeading(builder, hdg)
         WaypointFB.AddAcceptanceRadius(builder, a_rad)
         WaypointFB.AddHoldTime(builder, hold_time)
+        WaypointFB.AddFrame(builder, frame)
         waypoint = WaypointFB.End(builder)
 
         builder.Finish(waypoint)
@@ -91,9 +103,11 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
             d = math.inf
 
-            async with asyncio.timeout(timeout):
+            async with asyncio.timeout(timeout):  # whole-motion timeout
                 while a_rad <= d:  # while we have not breached the radius
-                    s = self.position_sub.try_recv()
+                    async with asyncio.timeout(0.300):  # 300 ms packet recv timeout
+                        s = self.position_sub.try_recv()
+
                     if s is not None:
                         payload = s.payload
                         pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
@@ -101,5 +115,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                         p = WaypointStruct(pos.Lat(), pos.Lon(), pos.Alt())
 
                         d = p.distance_to(t)
+
                     await asyncio.sleep(0.300)  # 300 ms async delay
+            return a_rad <= d  # returns success value
         # return from goto
