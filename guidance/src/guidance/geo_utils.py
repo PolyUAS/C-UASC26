@@ -4,7 +4,7 @@ from typing import Self
 import pyproj
 
 
-class Data_Waypoint:
+class WaypointStruct:
     """
     Waypoint class for convenience.
     If lat/lon are ints, they are stored as degE7,
@@ -39,7 +39,7 @@ class Data_Waypoint:
         return metric_dist(self, other)
 
 
-def metric_dist(w1: Data_Waypoint, w2: Data_Waypoint) -> float:
+def metric_dist(w1: WaypointStruct, w2: WaypointStruct) -> float:
     """
     Given coord params, returns distance in meters btw/ pts.
     """

@@ -7,10 +7,10 @@ from statemachine import State, StateMachine
 from zenoh import Session
 
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
-import guidance.generated.waypoint.Waypoint as Waypoint
+import guidance.generated.waypoint.Waypoint as WaypointFB
 from guidance.generated.Geofence.Coords import Coords
 from guidance.generated.Geofence.GeofencePacket import GeofencePacket
-from guidance.geo_utils import Data_Waypoint
+from guidance.geo_utils import WaypointStruct
 
 
 class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
@@ -58,7 +58,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
     async def navigate_waypoint(
         self,
-        waypoint: Data_Waypoint,
+        waypoint: WaypointStruct,
         hdg: float,
         a_rad: float,
         hold_time: float = 1.0,
@@ -71,14 +71,14 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         """
         builder = flatbuffers.Builder(0)
 
-        Waypoint.Start(builder)
-        Waypoint.AddLat(builder, waypoint.lat)
-        Waypoint.AddLon(builder, waypoint.lon)
-        Waypoint.AddAlt(builder, waypoint.alt)
-        Waypoint.AddHeading(builder, hdg)
-        Waypoint.AddAcceptanceRadius(builder, a_rad)
-        Waypoint.AddHoldTime(builder, hold_time)
-        waypoint = Waypoint.End(builder)
+        WaypointFB.Start(builder)
+        WaypointFB.AddLat(builder, waypoint.lat)
+        WaypointFB.AddLon(builder, waypoint.lon)
+        WaypointFB.AddAlt(builder, waypoint.alt)
+        WaypointFB.AddHeading(builder, hdg)
+        WaypointFB.AddAcceptanceRadius(builder, a_rad)
+        WaypointFB.AddHoldTime(builder, hold_time)
+        waypoint = WaypointFB.End(builder)
 
         builder.Finish(waypoint)
         payload = bytes(builder.Output())
@@ -97,7 +97,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                         payload = s.payload
                         pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
 
-                        p = Data_Waypoint(pos.Lat(), pos.Lon(), pos.Alt())
+                        p = WaypointStruct(pos.Lat(), pos.Lon(), pos.Alt())
 
                         d = p.distance_to(t)
                     await asyncio.sleep(0.300)  # 300 ms async delay
