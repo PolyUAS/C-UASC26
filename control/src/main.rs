@@ -21,6 +21,8 @@ mod geofence;
 mod gimbal_utils;
 mod missions;
 mod receiver_utils;
+mod gimbal;
+mod squidarm;
 mod telemetry;
 
 mod goto;
@@ -36,6 +38,7 @@ use gimbal_utils::create_gimbal_subscriber;
 use missions::get_missions;
 
 use telemetry::telemetry_loop;
+use crate::squidarm::init_squidarm;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
@@ -125,6 +128,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
 
     get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
+    let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {

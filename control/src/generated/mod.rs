@@ -12,3 +12,4 @@ pub mod heartbeat_generated;
 pub mod position_generated;
 #[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
 pub mod waypoint_generated;
+pub mod squidarm_generated;

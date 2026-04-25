@@ -1,0 +1,10 @@
+namespace Control_Squid;
+
+
+table Squidarm{
+    x:uint32; /* Time in us */
+    y:uint32; /* Time in us */
+}
+
+
+root_type Squidarm;
