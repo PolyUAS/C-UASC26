@@ -43,18 +43,18 @@ impl<'a> Squidarm<'a> {
 
 
   #[inline]
-  pub fn x(&self) -> u32 {
+  pub fn x(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Squidarm::VT_X, Some(0)).unwrap()}
+    unsafe { self._tab.get::<f32>(Squidarm::VT_X, Some(0.0)).unwrap()}
   }
   #[inline]
-  pub fn y(&self) -> u32 {
+  pub fn y(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Squidarm::VT_Y, Some(0)).unwrap()}
+    unsafe { self._tab.get::<f32>(Squidarm::VT_Y, Some(0.0)).unwrap()}
   }
 }
 
@@ -64,22 +64,22 @@ impl ::flatbuffers::Verifiable for Squidarm<'_> {
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
-     .visit_field::<u32>("x", Self::VT_X, false)?
-     .visit_field::<u32>("y", Self::VT_Y, false)?
+     .visit_field::<f32>("x", Self::VT_X, false)?
+     .visit_field::<f32>("y", Self::VT_Y, false)?
      .finish();
     Ok(())
   }
 }
 pub struct SquidarmArgs {
-    pub x: u32,
-    pub y: u32,
+    pub x: f32,
+    pub y: f32,
 }
 impl<'a> Default for SquidarmArgs {
   #[inline]
   fn default() -> Self {
     SquidarmArgs {
-      x: 0,
-      y: 0,
+      x: 0.0,
+      y: 0.0,
     }
   }
 }
@@ -90,12 +90,12 @@ pub struct SquidarmBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
 }
 impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> SquidarmBuilder<'a, 'b, A> {
   #[inline]
-  pub fn add_x(&mut self, x: u32) {
-    self.fbb_.push_slot::<u32>(Squidarm::VT_X, x, 0);
+  pub fn add_x(&mut self, x: f32) {
+    self.fbb_.push_slot::<f32>(Squidarm::VT_X, x, 0.0);
   }
   #[inline]
-  pub fn add_y(&mut self, y: u32) {
-    self.fbb_.push_slot::<u32>(Squidarm::VT_Y, y, 0);
+  pub fn add_y(&mut self, y: f32) {
+    self.fbb_.push_slot::<f32>(Squidarm::VT_Y, y, 0.0);
   }
   #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> SquidarmBuilder<'a, 'b, A> {

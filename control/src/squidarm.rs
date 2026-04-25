@@ -8,6 +8,10 @@ use zenoh::pubsub::Subscriber;
 const X_PIN: f32 = 0 as f32;
 const Y_PIN: f32 = 1 as f32;
 
+// TODO set these with actual specs
+const SERVO_MIN_US: f32 = 500.0;
+const SERVO_MAX_US: f32 = 2500.0;
+
 // NOTE:  remove annotation once this function has been called.
 #[allow(unused, dead_code)]
 ///
@@ -38,8 +42,11 @@ pub async fn init_squidarm(conn: SharedAsyncMavConn, session: &zenoh::Session) -
             };
             // proceed as normal
 
-            let x = sq_packet.x() as f32; /* in microseconds */
-            let y = sq_packet.y() as f32; /* in microseconds */
+            let x = sq_packet.x().clamp(-1., 1.) as f32; // [-1.0 to 1.0]
+            let y = sq_packet.y().clamp(-1., 1.) as f32; // [-1.0 to 1.0]
+
+            let x_us = SERVO_MIN_US + (SERVO_MAX_US - SERVO_MIN_US) * (x + 1.0) / 2.0;
+            let y_us = SERVO_MIN_US + (SERVO_MAX_US - SERVO_MIN_US) * (y + 1.0) / 2.0;
 
             /* please refer to https://mavlink.io/en/messages/common.html#MAV_CMD_DO_SET_SERVO */
 
@@ -48,7 +55,7 @@ pub async fn init_squidarm(conn: SharedAsyncMavConn, session: &zenoh::Session) -
                 if let Err(e) = conn
                     .send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
                         param1: X_PIN,
-                        param2: x,
+                        param2: x_us,
                         command: MavCmd::MAV_CMD_DO_SET_SERVO,
                         ..Default::default()
                     }))
@@ -60,7 +67,7 @@ pub async fn init_squidarm(conn: SharedAsyncMavConn, session: &zenoh::Session) -
                 if let Err(e) = conn
                     .send_default(&MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
                         param1: Y_PIN,
-                        param2: y,
+                        param2: y_us,
                         command: MavCmd::MAV_CMD_DO_SET_SERVO,
                         ..Default::default()
                     }))

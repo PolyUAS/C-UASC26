@@ -21,7 +21,6 @@ mod geofence;
 mod gimbal_utils;
 mod missions;
 mod receiver_utils;
-mod gimbal;
 mod squidarm;
 mod telemetry;
 
@@ -37,8 +36,8 @@ use gimbal_utils::create_gimbal_subscriber;
 
 use missions::get_missions;
 
-use telemetry::telemetry_loop;
 use crate::squidarm::init_squidarm;
+use telemetry::telemetry_loop;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
