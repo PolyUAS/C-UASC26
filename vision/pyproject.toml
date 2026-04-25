@@ -24,7 +24,11 @@ torchvision = [
   { index = "jetson-cu126", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
 
-
+# TODO TEST THIS LINK's SCRIPT:
+#
+# https://qengineering.eu/install-opencv-on-orin-nano.html#:~:text=In%20fact,%20the%20only%20method,or%20in%20the%20section%20below.
+#
+#
 [[tool.uv.index]]
 name = "jetson-cu126"
 url = "https://pypi.jetson-ai-lab.io/jp6/cu126/"
