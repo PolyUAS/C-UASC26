@@ -1,13 +1,15 @@
 import asyncio
 import math
+import os
 from abc import ABC, ABCMeta
-from math import degrees
+from os import environ
 
 import flatbuffers
 from statemachine import State, StateMachine
 from statemachine.transition_list import TransitionList
 from zenoh import Session
 
+import guidance.generated.Control_Squid.Squidarm as SquidarmFB
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
 import guidance.generated.waypoint.FrameType as FrameTypeFB
 import guidance.generated.waypoint.Waypoint as WaypointFB
@@ -21,6 +23,8 @@ class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
 
 
 class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
+    drone_name = os.environ.get("DRONE_NAME")
+
     INIT = State(initial=True)
     LAUNCH = State()
 
@@ -52,7 +56,13 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
         self.position_sub = session.declare_subscriber("control/telem/gl_pos_int")
 
-        pass
+        payload_input_sub_str = ""
+        if os.environ.get("DRONE_NAME") == "HORUS":
+            payload_input_sub_str = "control/in/squidarm"
+        elif os.environ.get("DRONE_NAME") == "OSIRUS":
+            payload_input_sub_str = "control/in/payload"
+
+        self.payload_sub = session.declare_publisher(payload_input_sub_str)
 
     def set_geofence(self, packet: GeofencePacket):
         coords_len = packet.PointsLength()
@@ -119,3 +129,18 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                     await asyncio.sleep(0.300)  # 300 ms async delay
             return a_rad <= d  # returns success value
         # return from goto
+
+    def set_payload(self, x: float, y: float):
+        if self.drone_name == "OSIRUS":
+            y = 0.0
+
+        builder = flatbuffers.Builder(0)
+        SquidarmFB.Start(builder)
+        SquidarmFB.AddX(x, builder)
+        SquidarmFB.AddY(y, builder)
+        p = SquidarmFB.End(builder)
+
+        builder.Finish(p)
+        payload = bytes(builder.Output())
+
+        self.payload_sub.put(payload)

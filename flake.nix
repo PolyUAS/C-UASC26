@@ -133,6 +133,11 @@
           ];
           env.ZENOH_CONFIG = sharedConfig;
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+
+
+          env.DRONE_NAME = "HORUS";
+          # env.DRONE_NAME = "OSIRUS";
+
           shellHook = ''
             export ZENOH_CONFIG=${sharedConfig}
             alias j="just"

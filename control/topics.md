@@ -22,6 +22,7 @@
 - [x] control/in/gimbal => gimbal.fbs
 - [x] control/in/target_pos => waypoint.fbs
 - [x] control/in/squidarm => squidarm.fbs
+- [ ] control/in/payload => squidarm.fbs (BUT IGNORES y) 
 
 
 TODO GIMBAL HEALTH???
