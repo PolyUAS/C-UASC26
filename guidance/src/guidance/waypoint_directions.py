@@ -30,9 +30,6 @@ class Point(NamedTuple):
     alt_mm: float = 0.0
     label: str = ""
 
-    def to_waypoint(self) -> WaypointStruct:
-        return WaypointStruct(self.lat_e7, self.lon_e7, self.alt_mm)
-
     def __repr__(self) -> str:
         return self.label or f"({self.lat_e7 * 1e-7:.6f}, {self.lon_e7 * 1e-7:.6f}, alt={self.alt_mm:.0f}mm)"
 
@@ -72,6 +69,10 @@ class TSP:
     # Geometry helpers
     # ------------------
 
+    def _as_waypoint(self, p: Point) -> WaypointStruct:
+        """Convert Point to WaypointStruct, converting alt_mm -> m for metric_dist."""
+        return WaypointStruct(p.lat_e7, p.lon_e7, p.alt_mm / _M_TO_MM)
+
     def _horizontal_dist(self, a: Point, b: Point) -> float:
         """
         Horizontal geodetic distance in mm (ignores altitude).
@@ -86,7 +87,7 @@ class TSP:
         Full 3D distance in mm: geodetic horizontal + altitude delta.
         Delegates to WaypointStruct.distance_to (metric_dist), converts m -> mm.
         """
-        return a.to_waypoint().distance_to(b.to_waypoint()) * _M_TO_MM
+        return self._as_waypoint(a).distance_to(self._as_waypoint(b)) * _M_TO_MM
 
     def _angle_of_elevation(self, a: Point, b: Point) -> float:
         """
@@ -112,8 +113,8 @@ class TSP:
         Forward azimuth in degrees (0 = North, clockwise) from a to b,
         computed by pyproj geodesic inverse.
         """
-        lat1, lon1, _ = a.to_waypoint().to_deg()
-        lat2, lon2, _ = b.to_waypoint().to_deg()
+        lat1, lon1, _ = self._as_waypoint(a).to_deg()
+        lat2, lon2, _ = self._as_waypoint(b).to_deg()
         az12, _, _ = _GEOD.inv(lon1, lat1, lon2, lat2)
         return az12 % 360
 
@@ -214,20 +215,20 @@ class TSP:
         for d in directions:
             label = "Return to start" if d.step == len(directions) else f"Go to {d.to_point}"
             alt_str = (
-                f"↑+{d.alt_change:.0f}mm" if d.alt_change > 0
-                else f"↓{d.alt_change:.0f}mm" if d.alt_change < 0
-                else "→ flat"
+                f"+{d.alt_change:.0f}mm" if d.alt_change > 0
+                else f"{d.alt_change:.0f}mm" if d.alt_change < 0
+                else "flat"
             )
             print(
-                f"  Step {d.step:>2}: {str(d.from_point):<30} → {str(d.to_point):<30} "
-                f"| {d.compass:<2} ({d.bearing_deg:>6.1f}°) "
-                f"| 3D {d.distance:>12.1f} mm "
-                f"| horiz {d.horiz_dist:>12.1f} mm "
-                f"| elev {d.angle_of_elevation:>+6.2f}° "
-                f"| alt {alt_str:<14}"
-                f"  ({label})"
+                f"  Step {d.step:>2}: {str(d.from_point)} -> {str(d.to_point)}"
+                f"  | {d.compass} {d.bearing_deg:.1f}deg"
+                f"  | 3D {d.distance:.1f}mm"
+                f"  | horiz {d.horiz_dist:.1f}mm"
+                f"  | elev {d.angle_of_elevation:+.2f}deg"
+                f"  | alt {alt_str}"
+                f"  | {label}"
             )
-        print(f"\n  Total 3D tour distance: {total:.1f} mm\n")
+        print(f"\n  Total 3D tour distance: {total:.1f}mm\n")
 
     # -------
     # Solver

@@ -44,10 +44,10 @@ def metric_dist(w1: WaypointStruct, w2: WaypointStruct) -> float:
     Given coord params, returns distance in meters btw/ pts.
     """
 
-    lon1, lat1, alt1 = w1.to_deg()
-    lon2, lat2, alt2 = w2.to_deg()
+    lat1, lon1, alt1 = w1.to_deg()
+    lat2, lon2, alt2 = w2.to_deg()
 
-    dalt_m = (alt2 - alt1) * 1000.0  # mm to m
+    dalt_m = (alt2 - alt1) / 1000.0  # mm to m
 
     geod = pyproj.Geod(ellps="WGS84")
 
