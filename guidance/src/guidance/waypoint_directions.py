@@ -19,19 +19,8 @@ Points are real-world geodetic coordinates stored as WaypointStruct
 # Data types
 # ------------
 
-class Point(NamedTuple):
-    """
-    WaypointStruct wrapper for use in the TSP solver.
-    lat_e7 / lon_e7 are integer degrees * 1e7 (degE7).
-    alt_mm is altitude in millimetres.
-    """
-    lat_e7: int
-    lon_e7: int
-    alt_mm: float = 0.0
-    label: str = ""
 
-    def __repr__(self) -> str:
-        return self.label or f"({self.lat_e7 * 1e-7:.6f}, {self.lon_e7 * 1e-7:.6f}, alt={self.alt_mm:.0f}mm)"
+type Point = tuple[WaypointStruct, str]
 
 
 class Edge(NamedTuple):
@@ -69,17 +58,16 @@ class TSP:
     # Geometry helpers
     # ------------------
 
-    def _as_waypoint(self, p: Point) -> WaypointStruct:
-        """Convert Point to WaypointStruct, converting alt_mm -> m for metric_dist."""
-        return WaypointStruct(p.lat_e7, p.lon_e7, p.alt_mm / _M_TO_MM)
-
     def _horizontal_dist(self, a: Point, b: Point) -> float:
         """
-        Horizontal geodetic distance in mm (ignores altitude).
+        Horizontal geodetic distance in mm.
         Zeroes out altitude on both ends so metric_dist measures horizontal only.
+        Not used in TSP calculation
         """
-        wa = WaypointStruct(a.lat_e7, a.lon_e7, 0.0)
-        wb = WaypointStruct(b.lat_e7, b.lon_e7, 0.0)
+        wa = a[0]
+        wa = WaypointStruct(wa.lat, wa.lon, 0)
+        wb = b[0]
+        wb = WaypointStruct(wb.lat, wb.lon, 0)
         return wa.distance_to(wb) * _M_TO_MM
 
     def _dist_3d(self, a: Point, b: Point) -> float:
@@ -87,7 +75,7 @@ class TSP:
         Full 3D distance in mm: geodetic horizontal + altitude delta.
         Delegates to WaypointStruct.distance_to (metric_dist), converts m -> mm.
         """
-        return self._as_waypoint(a).distance_to(self._as_waypoint(b)) * _M_TO_MM
+        return a[0].distance_to(b[0]) * _M_TO_MM
 
     def _angle_of_elevation(self, a: Point, b: Point) -> float:
         """
@@ -95,7 +83,7 @@ class TSP:
         atan2(vertical_rise_mm, horizontal_dist_mm) — units cancel so no conversion needed.
         """
         horiz = self._horizontal_dist(a, b)
-        vert  = b.alt_mm - a.alt_mm     # mm delta
+        vert  = b[0].alt - a[0].alt     # mm delta
         if horiz == 0.0:
             return 90.0 if vert > 0 else (-90.0 if vert < 0 else 0.0)
         return math.degrees(math.atan2(vert, horiz))
@@ -108,13 +96,15 @@ class TSP:
             for i in range(n)
         )
 
+    # check bearing
+
     def bearing(self, a: Point, b: Point) -> float:
         """
         Forward azimuth in degrees (0 = North, clockwise) from a to b,
         computed by pyproj geodesic inverse.
         """
-        lat1, lon1, _ = self._as_waypoint(a).to_deg()
-        lat2, lon2, _ = self._as_waypoint(b).to_deg()
+        lat1, lon1, _ = a[0].to_deg()
+        lat2, lon2, _ = b[0].to_deg()
         az12, _, _ = _GEOD.inv(lon1, lat1, lon2, lat2)
         return az12 % 360
 
@@ -203,7 +193,7 @@ class TSP:
                 to_point=b,
                 distance=self._dist_3d(a, b),
                 horiz_dist=self._horizontal_dist(a, b),
-                alt_change=b.alt_mm - a.alt_mm,
+                alt_change=b[0].alt - a[0].alt,
                 angle_of_elevation=self._angle_of_elevation(a, b),
                 bearing_deg=deg,
                 compass=self.compass_direction(deg),
@@ -213,14 +203,14 @@ class TSP:
     def print_directions(self, directions: list[Direction], total: float) -> None:
         print("\n── Turn-by-turn directions ──────────────────────────────────────────────")
         for d in directions:
-            label = "Return to start" if d.step == len(directions) else f"Go to {d.to_point}"
+            label = "Return to start" if d.step == len(directions) else f"Go to {d.to_point[1]}"
             alt_str = (
                 f"+{d.alt_change:.0f}mm" if d.alt_change > 0
                 else f"{d.alt_change:.0f}mm" if d.alt_change < 0
                 else "flat"
             )
             print(
-                f"  Step {d.step:>2}: {str(d.from_point)} -> {str(d.to_point)}"
+                f"  Step {d.step:>2}: {str(d.from_point[1])} -> {str(d.to_point[1])}"
                 f"  | {d.compass} {d.bearing_deg:.1f}deg"
                 f"  | 3D {d.distance:.1f}mm"
                 f"  | horiz {d.horiz_dist:.1f}mm"
@@ -244,7 +234,7 @@ class TSP:
         Solve TSP using nearest-neighbour + 2-opt (full 3D geodetic distances).
 
         Args:
-            points  — list of Point (lat_e7, lon_e7, alt_mm, label)
+            points  — list of Point (WaypointStruct, label)
             start   — index of the starting point
             verbose — print progress and turn-by-turn directions
 
@@ -269,7 +259,7 @@ class TSP:
         if verbose:
             improvement = (nn_len - opt_len) / nn_len * 100 if nn_len else 0
             print(f"  2-opt improved length    : {opt_len:.1f} mm  ({improvement:.1f}% better)")
-            print(f"  Tour order               : {' → '.join(str(points[i]) for i in opt_tour)} → start")
+            print(f"  Tour order               : {' → '.join(str(points[i][1]) for i in opt_tour)} → start")
 
         directions = self.build_directions(points, opt_tour)
 
@@ -284,16 +274,16 @@ class TSP:
 # -------
 
 if __name__ == "__main__":
-    # degE7 = degrees * 1e7,  alt in mm
-    demo_points = [
-        Point(337654320,  -1178234560,      0, "A"),
-        Point(337660000,  -1178220000, 50_000, "B"),
-        Point(337670000,  -1178210000, 50_000, "C"),
-        Point(337665000,  -1178230000, 50_000, "D"),
-        Point(337655000,  -1178240000,      0, "E"),
-        Point(337648000,  -1178225000, 50_000, "F"),
-        Point(337662000,  -1178215000, 50_000, "G"),
-        Point(337650000,  -1178235000, 50_000, "H"),
+    # deg = degrees,  alt in mm
+    demo_points: list[Point] = [
+        (WaypointStruct(337654320,  -1178234560,      0), "A"),
+        (WaypointStruct(337660000,  -1178220000, 50_000), "B"),
+        (WaypointStruct(337670000,  -1178210000, 50_000), "C"),
+        (WaypointStruct(337665000,  -1178230000, 50_000), "D"),
+        (WaypointStruct(337655000,  -1178240000,      0), "E"),
+        (WaypointStruct(337648000,  -1178225000, 50_000), "F"),
+        (WaypointStruct(337662000,  -1178215000, 50_000), "G"),
+        (WaypointStruct(337650000,  -1178235000, 50_000), "H"),
     ]
 
     tsp = TSP()
