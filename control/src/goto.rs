@@ -1,4 +1,7 @@
-use mavlink::ardupilotmega::{MavCmd, MavFrame, MavMessage};
+use mavlink::{
+    ardupilotmega::MavDoRepositionFlags,
+    ardupilotmega::{MavCmd, MavFrame, MavMessage},
+};
 use zenoh::{Session, pubsub::Subscriber};
 
 use crate::{
@@ -47,14 +50,14 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
         let res = conn
             .send_default(&MavMessage::COMMAND_INT(
                 mavlink::ardupilotmega::COMMAND_INT_DATA {
-                    param1: target.hold_time(),
-                    param2: target.acceptance_radius(),
-                    param3: target.pass_radius(),
-                    param4: target.heading(),
+                    param1: target.speed(), // m/s
+                    param2: 1.0,            // immediately transition to guided mode
+                    param3: target.acceptance_radius(),
+                    param4: target.heading(), // radians
                     x: target.lat(),
                     y: target.lon(),
                     z: target.alt(),
-                    command: MavCmd::MAV_CMD_NAV_WAYPOINT,
+                    command: MavCmd::MAV_CMD_DO_REPOSITION,
                     target_system: sys,
                     target_component: comp,
                     frame: frame,

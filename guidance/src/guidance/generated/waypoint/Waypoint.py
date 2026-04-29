@@ -25,7 +25,7 @@ class Waypoint(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Waypoint
-    def HoldTime(self):
+    def Speed(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
@@ -60,37 +60,30 @@ class Waypoint(object):
         return 0.0
 
     # Waypoint
-    def PassRadius(self):
+    def Heading(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
         return 0.0
 
     # Waypoint
-    def Heading(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Waypoint
     def Frame(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
 def WaypointStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(7)
 
 def Start(builder):
     WaypointStart(builder)
 
-def WaypointAddHoldTime(builder, holdTime):
-    builder.PrependFloat32Slot(0, holdTime, 0.0)
+def WaypointAddSpeed(builder, speed):
+    builder.PrependFloat32Slot(0, speed, 0.0)
 
-def AddHoldTime(builder, holdTime):
-    WaypointAddHoldTime(builder, holdTime)
+def AddSpeed(builder, speed):
+    WaypointAddSpeed(builder, speed)
 
 def WaypointAddLat(builder, lat):
     builder.PrependInt32Slot(1, lat, 0)
@@ -116,20 +109,14 @@ def WaypointAddAcceptanceRadius(builder, acceptanceRadius):
 def AddAcceptanceRadius(builder, acceptanceRadius):
     WaypointAddAcceptanceRadius(builder, acceptanceRadius)
 
-def WaypointAddPassRadius(builder, passRadius):
-    builder.PrependFloat32Slot(5, passRadius, 0.0)
-
-def AddPassRadius(builder, passRadius):
-    WaypointAddPassRadius(builder, passRadius)
-
 def WaypointAddHeading(builder, heading):
-    builder.PrependFloat32Slot(6, heading, 0.0)
+    builder.PrependFloat32Slot(5, heading, 0.0)
 
 def AddHeading(builder, heading):
     WaypointAddHeading(builder, heading)
 
 def WaypointAddFrame(builder, frame):
-    builder.PrependUint8Slot(7, frame, 0)
+    builder.PrependUint8Slot(6, frame, 0)
 
 def AddFrame(builder, frame):
     WaypointAddFrame(builder, frame)

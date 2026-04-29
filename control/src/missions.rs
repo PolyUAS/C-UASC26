@@ -88,7 +88,6 @@ pub async fn get_missions(
 
                     missions.push(MissionSegment::new(cmd, data));
                 }
-                Mav
                 _ => {}
             },
             _ => {}
@@ -131,9 +130,8 @@ pub fn get_all_waypoints(items: Vec<MissionSegment>) {
                 Waypoint::create(
                     &mut fbb,
                     &WaypointArgs {
-                        hold_time: i.data.param1,
+                        speed: 0.0, // invalid anyways
                         heading: i.data.param2,
-                        pass_radius: i.data.param3,
                         acceptance_radius: i.data.param4,
                         frame: frame,
                         lat: i.data.x,

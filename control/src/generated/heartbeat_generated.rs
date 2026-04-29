@@ -2,422 +2,359 @@
 // @generated
 extern crate alloc;
 
+use crate::attitude_generated::*;
+
 #[allow(unused_imports, dead_code)]
 pub mod heartbeat {
 
-    use crate::attitude_generated::*;
+  use crate::attitude_generated::*;
 
-    #[deprecated(
-        since = "2.0.0",
-        note = "Use associated constants instead. This will no longer be generated in 2021."
-    )]
-    pub const ENUM_MIN_STATUS: i8 = 0;
-    #[deprecated(
-        since = "2.0.0",
-        note = "Use associated constants instead. This will no longer be generated in 2021."
-    )]
-    pub const ENUM_MAX_STATUS: i8 = 8;
-    #[deprecated(
-        since = "2.0.0",
-        note = "Use associated constants instead. This will no longer be generated in 2021."
-    )]
-    #[allow(non_camel_case_types)]
-    pub const ENUM_VALUES_STATUS: [Status; 9] = [
-        Status::Active,
-        Status::Boot,
-        Status::Calibrating,
-        Status::Standby,
-        Status::Critical,
-        Status::Emergency,
-        Status::Flight_Terminating,
-        Status::Power_Off,
-        Status::Uninit,
-    ];
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_STATUS: i8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_STATUS: i8 = 8;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_STATUS: [Status; 9] = [
+  Status::Active,
+  Status::Boot,
+  Status::Calibrating,
+  Status::Standby,
+  Status::Critical,
+  Status::Emergency,
+  Status::Flight_Terminating,
+  Status::Power_Off,
+  Status::Uninit,
+];
 
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-    #[repr(transparent)]
-    pub struct Status(pub i8);
-    #[allow(non_upper_case_globals)]
-    impl Status {
-        pub const Active: Self = Self(0);
-        pub const Boot: Self = Self(1);
-        pub const Calibrating: Self = Self(2);
-        pub const Standby: Self = Self(3);
-        pub const Critical: Self = Self(4);
-        pub const Emergency: Self = Self(5);
-        pub const Flight_Terminating: Self = Self(6);
-        pub const Power_Off: Self = Self(7);
-        pub const Uninit: Self = Self(8);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct Status(pub i8);
+#[allow(non_upper_case_globals)]
+impl Status {
+  pub const Active: Self = Self(0);
+  pub const Boot: Self = Self(1);
+  pub const Calibrating: Self = Self(2);
+  pub const Standby: Self = Self(3);
+  pub const Critical: Self = Self(4);
+  pub const Emergency: Self = Self(5);
+  pub const Flight_Terminating: Self = Self(6);
+  pub const Power_Off: Self = Self(7);
+  pub const Uninit: Self = Self(8);
 
-        pub const ENUM_MIN: i8 = 0;
-        pub const ENUM_MAX: i8 = 8;
-        pub const ENUM_VALUES: &'static [Self] = &[
-            Self::Active,
-            Self::Boot,
-            Self::Calibrating,
-            Self::Standby,
-            Self::Critical,
-            Self::Emergency,
-            Self::Flight_Terminating,
-            Self::Power_Off,
-            Self::Uninit,
-        ];
-        /// Returns the variant's name or "" if unknown.
-        pub fn variant_name(self) -> Option<&'static str> {
-            match self {
-                Self::Active => Some("Active"),
-                Self::Boot => Some("Boot"),
-                Self::Calibrating => Some("Calibrating"),
-                Self::Standby => Some("Standby"),
-                Self::Critical => Some("Critical"),
-                Self::Emergency => Some("Emergency"),
-                Self::Flight_Terminating => Some("Flight_Terminating"),
-                Self::Power_Off => Some("Power_Off"),
-                Self::Uninit => Some("Uninit"),
-                _ => None,
-            }
-        }
+  pub const ENUM_MIN: i8 = 0;
+  pub const ENUM_MAX: i8 = 8;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::Active,
+    Self::Boot,
+    Self::Calibrating,
+    Self::Standby,
+    Self::Critical,
+    Self::Emergency,
+    Self::Flight_Terminating,
+    Self::Power_Off,
+    Self::Uninit,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::Active => Some("Active"),
+      Self::Boot => Some("Boot"),
+      Self::Calibrating => Some("Calibrating"),
+      Self::Standby => Some("Standby"),
+      Self::Critical => Some("Critical"),
+      Self::Emergency => Some("Emergency"),
+      Self::Flight_Terminating => Some("Flight_Terminating"),
+      Self::Power_Off => Some("Power_Off"),
+      Self::Uninit => Some("Uninit"),
+      _ => None,
     }
-    impl ::core::fmt::Debug for Status {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-            if let Some(name) = self.variant_name() {
-                f.write_str(name)
-            } else {
-                f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
-            }
-        }
+  }
+}
+impl ::core::fmt::Debug for Status {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
     }
-    impl<'a> ::flatbuffers::Follow<'a> for Status {
-        type Inner = Self;
-        #[inline]
-        unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-            let b = unsafe { ::flatbuffers::read_scalar_at::<i8>(buf, loc) };
-            Self(b)
-        }
-    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for Status {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<i8>(buf, loc) };
+    Self(b)
+  }
+}
 
-    impl ::flatbuffers::Push for Status {
-        type Output = Status;
-        #[inline]
-        unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-            unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-        }
-    }
-
-    impl ::flatbuffers::EndianScalar for Status {
-        type Scalar = i8;
-        #[inline]
-        fn to_little_endian(self) -> i8 {
-            self.0.to_le()
-        }
-        #[inline]
-        #[allow(clippy::wrong_self_convention)]
-        fn from_little_endian(v: i8) -> Self {
-            let b = i8::from_le(v);
-            Self(b)
-        }
-    }
-
-    impl<'a> ::flatbuffers::Verifiable for Status {
-        #[inline]
-        fn run_verifier(
-            v: &mut ::flatbuffers::Verifier,
-            pos: usize,
-        ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-            i8::run_verifier(v, pos)
-        }
-    }
-
-    impl ::flatbuffers::SimpleToVerifyInSlice for Status {}
-    pub enum HeartbeatHealthPacketOffset {}
-    #[derive(Copy, Clone, PartialEq)]
-
-    pub struct HeartbeatHealthPacket<'a> {
-        pub _tab: ::flatbuffers::Table<'a>,
-    }
-
-    impl<'a> ::flatbuffers::Follow<'a> for HeartbeatHealthPacket<'a> {
-        type Inner = HeartbeatHealthPacket<'a>;
-        #[inline]
-        unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-            Self {
-                _tab: unsafe { ::flatbuffers::Table::new(buf, loc) },
-            }
-        }
-    }
-
-    impl<'a> HeartbeatHealthPacket<'a> {
-        pub const VT_SYSTEM_STATUS: ::flatbuffers::VOffsetT = 4;
-        pub const VT_GUIDED: ::flatbuffers::VOffsetT = 6;
-        pub const VT_AUTO: ::flatbuffers::VOffsetT = 8;
-        pub const VT_MANUAL: ::flatbuffers::VOffsetT = 10;
-        pub const VT_ARMED: ::flatbuffers::VOffsetT = 12;
-
-        #[inline]
-        pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
-            HeartbeatHealthPacket { _tab: table }
-        }
-        #[allow(unused_mut)]
-        pub fn create<
-            'bldr: 'args,
-            'args: 'mut_bldr,
-            'mut_bldr,
-            A: ::flatbuffers::Allocator + 'bldr,
-        >(
-            _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-            args: &'args HeartbeatHealthPacketArgs,
-        ) -> ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'bldr>> {
-            let mut builder = HeartbeatHealthPacketBuilder::new(_fbb);
-            builder.add_armed(args.armed);
-            builder.add_manual(args.manual);
-            builder.add_auto(args.auto);
-            builder.add_guided(args.guided);
-            builder.add_system_status(args.system_status);
-            builder.finish()
-        }
-
-        #[inline]
-        pub fn system_status(&self) -> Status {
-            // Safety:
-            // Created from valid Table for this object
-            // which contains a valid value in this slot
-            unsafe {
-                self._tab
-                    .get::<Status>(
-                        HeartbeatHealthPacket::VT_SYSTEM_STATUS,
-                        Some(Status::Active),
-                    )
-                    .unwrap()
-            }
-        }
-        #[inline]
-        pub fn guided(&self) -> bool {
-            // Safety:
-            // Created from valid Table for this object
-            // which contains a valid value in this slot
-            unsafe {
-                self._tab
-                    .get::<bool>(HeartbeatHealthPacket::VT_GUIDED, Some(false))
-                    .unwrap()
-            }
-        }
-        #[inline]
-        pub fn auto(&self) -> bool {
-            // Safety:
-            // Created from valid Table for this object
-            // which contains a valid value in this slot
-            unsafe {
-                self._tab
-                    .get::<bool>(HeartbeatHealthPacket::VT_AUTO, Some(false))
-                    .unwrap()
-            }
-        }
-        #[inline]
-        pub fn manual(&self) -> bool {
-            // Safety:
-            // Created from valid Table for this object
-            // which contains a valid value in this slot
-            unsafe {
-                self._tab
-                    .get::<bool>(HeartbeatHealthPacket::VT_MANUAL, Some(false))
-                    .unwrap()
-            }
-        }
-        #[inline]
-        pub fn armed(&self) -> bool {
-            // Safety:
-            // Created from valid Table for this object
-            // which contains a valid value in this slot
-            unsafe {
-                self._tab
-                    .get::<bool>(HeartbeatHealthPacket::VT_ARMED, Some(false))
-                    .unwrap()
-            }
-        }
-    }
-
-    impl ::flatbuffers::Verifiable for HeartbeatHealthPacket<'_> {
-        #[inline]
-        fn run_verifier(
-            v: &mut ::flatbuffers::Verifier,
-            pos: usize,
-        ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-            v.visit_table(pos)?
-                .visit_field::<Status>("system_status", Self::VT_SYSTEM_STATUS, false)?
-                .visit_field::<bool>("guided", Self::VT_GUIDED, false)?
-                .visit_field::<bool>("auto", Self::VT_AUTO, false)?
-                .visit_field::<bool>("manual", Self::VT_MANUAL, false)?
-                .visit_field::<bool>("armed", Self::VT_ARMED, false)?
-                .finish();
-            Ok(())
-        }
-    }
-    pub struct HeartbeatHealthPacketArgs {
-        pub system_status: Status,
-        pub guided: bool,
-        pub auto: bool,
-        pub manual: bool,
-        pub armed: bool,
-    }
-    impl<'a> Default for HeartbeatHealthPacketArgs {
-        #[inline]
-        fn default() -> Self {
-            HeartbeatHealthPacketArgs {
-                system_status: Status::Active,
-                guided: false,
-                auto: false,
-                manual: false,
-                armed: false,
-            }
-        }
-    }
-
-    pub struct HeartbeatHealthPacketBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
-        fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-        start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
-    }
-    impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> HeartbeatHealthPacketBuilder<'a, 'b, A> {
-        #[inline]
-        pub fn add_system_status(&mut self, system_status: Status) {
-            self.fbb_.push_slot::<Status>(
-                HeartbeatHealthPacket::VT_SYSTEM_STATUS,
-                system_status,
-                Status::Active,
-            );
-        }
-        #[inline]
-        pub fn add_guided(&mut self, guided: bool) {
-            self.fbb_
-                .push_slot::<bool>(HeartbeatHealthPacket::VT_GUIDED, guided, false);
-        }
-        #[inline]
-        pub fn add_auto(&mut self, auto: bool) {
-            self.fbb_
-                .push_slot::<bool>(HeartbeatHealthPacket::VT_AUTO, auto, false);
-        }
-        #[inline]
-        pub fn add_manual(&mut self, manual: bool) {
-            self.fbb_
-                .push_slot::<bool>(HeartbeatHealthPacket::VT_MANUAL, manual, false);
-        }
-        #[inline]
-        pub fn add_armed(&mut self, armed: bool) {
-            self.fbb_
-                .push_slot::<bool>(HeartbeatHealthPacket::VT_ARMED, armed, false);
-        }
-        #[inline]
-        pub fn new(
-            _fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-        ) -> HeartbeatHealthPacketBuilder<'a, 'b, A> {
-            let start = _fbb.start_table();
-            HeartbeatHealthPacketBuilder {
-                fbb_: _fbb,
-                start_: start,
-            }
-        }
-        #[inline]
-        pub fn finish(self) -> ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'a>> {
-            let o = self.fbb_.end_table(self.start_);
-            ::flatbuffers::WIPOffset::new(o.value())
-        }
-    }
-
-    impl ::core::fmt::Debug for HeartbeatHealthPacket<'_> {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-            let mut ds = f.debug_struct("HeartbeatHealthPacket");
-            ds.field("system_status", &self.system_status());
-            ds.field("guided", &self.guided());
-            ds.field("auto", &self.auto());
-            ds.field("manual", &self.manual());
-            ds.field("armed", &self.armed());
-            ds.finish()
-        }
-    }
+impl ::flatbuffers::Push for Status {
+    type Output = Status;
     #[inline]
-    /// Verifies that a buffer of bytes contains a `HeartbeatHealthPacket`
-    /// and returns it.
-    /// Note that verification is still experimental and may not
-    /// catch every error, or be maximally performant. For the
-    /// previous, unchecked, behavior use
-    /// `root_as_heartbeat_health_packet_unchecked`.
-    pub fn root_as_heartbeat_health_packet(
-        buf: &[u8],
-    ) -> Result<HeartbeatHealthPacket<'_>, ::flatbuffers::InvalidFlatbuffer> {
-        ::flatbuffers::root::<HeartbeatHealthPacket>(buf)
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
     }
-    #[inline]
-    /// Verifies that a buffer of bytes contains a size prefixed
-    /// `HeartbeatHealthPacket` and returns it.
-    /// Note that verification is still experimental and may not
-    /// catch every error, or be maximally performant. For the
-    /// previous, unchecked, behavior use
-    /// `size_prefixed_root_as_heartbeat_health_packet_unchecked`.
-    pub fn size_prefixed_root_as_heartbeat_health_packet(
-        buf: &[u8],
-    ) -> Result<HeartbeatHealthPacket<'_>, ::flatbuffers::InvalidFlatbuffer> {
-        ::flatbuffers::size_prefixed_root::<HeartbeatHealthPacket>(buf)
-    }
-    #[inline]
-    /// Verifies, with the given options, that a buffer of bytes
-    /// contains a `HeartbeatHealthPacket` and returns it.
-    /// Note that verification is still experimental and may not
-    /// catch every error, or be maximally performant. For the
-    /// previous, unchecked, behavior use
-    /// `root_as_heartbeat_health_packet_unchecked`.
-    pub fn root_as_heartbeat_health_packet_with_opts<'b, 'o>(
-        opts: &'o ::flatbuffers::VerifierOptions,
-        buf: &'b [u8],
-    ) -> Result<HeartbeatHealthPacket<'b>, ::flatbuffers::InvalidFlatbuffer> {
-        ::flatbuffers::root_with_opts::<HeartbeatHealthPacket<'b>>(opts, buf)
-    }
-    #[inline]
-    /// Verifies, with the given verifier options, that a buffer of
-    /// bytes contains a size prefixed `HeartbeatHealthPacket` and returns
-    /// it. Note that verification is still experimental and may not
-    /// catch every error, or be maximally performant. For the
-    /// previous, unchecked, behavior use
-    /// `root_as_heartbeat_health_packet_unchecked`.
-    pub fn size_prefixed_root_as_heartbeat_health_packet_with_opts<'b, 'o>(
-        opts: &'o ::flatbuffers::VerifierOptions,
-        buf: &'b [u8],
-    ) -> Result<HeartbeatHealthPacket<'b>, ::flatbuffers::InvalidFlatbuffer> {
-        ::flatbuffers::size_prefixed_root_with_opts::<HeartbeatHealthPacket<'b>>(opts, buf)
-    }
-    #[inline]
-    /// Assumes, without verification, that a buffer of bytes contains a HeartbeatHealthPacket and returns it.
-    /// # Safety
-    /// Callers must trust the given bytes do indeed contain a valid `HeartbeatHealthPacket`.
-    pub unsafe fn root_as_heartbeat_health_packet_unchecked(
-        buf: &[u8],
-    ) -> HeartbeatHealthPacket<'_> {
-        unsafe { ::flatbuffers::root_unchecked::<HeartbeatHealthPacket>(buf) }
-    }
-    #[inline]
-    /// Assumes, without verification, that a buffer of bytes contains a size prefixed HeartbeatHealthPacket and returns it.
-    /// # Safety
-    /// Callers must trust the given bytes do indeed contain a valid size prefixed `HeartbeatHealthPacket`.
-    pub unsafe fn size_prefixed_root_as_heartbeat_health_packet_unchecked(
-        buf: &[u8],
-    ) -> HeartbeatHealthPacket<'_> {
-        unsafe { ::flatbuffers::size_prefixed_root_unchecked::<HeartbeatHealthPacket>(buf) }
-    }
-    #[inline]
-    pub fn finish_heartbeat_health_packet_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(
-        fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-        root: ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'a>>,
-    ) {
-        fbb.finish(root, None);
-    }
+}
 
-    #[inline]
-    pub fn finish_size_prefixed_heartbeat_health_packet_buffer<
-        'a,
-        'b,
-        A: ::flatbuffers::Allocator + 'a,
-    >(
-        fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-        root: ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'a>>,
-    ) {
-        fbb.finish_size_prefixed(root, None);
+impl ::flatbuffers::EndianScalar for Status {
+  type Scalar = i8;
+  #[inline]
+  fn to_little_endian(self) -> i8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: i8) -> Self {
+    let b = i8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for Status {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    i8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for Status {}
+pub enum HeartbeatHealthPacketOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct HeartbeatHealthPacket<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for HeartbeatHealthPacket<'a> {
+  type Inner = HeartbeatHealthPacket<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> HeartbeatHealthPacket<'a> {
+  pub const VT_SYSTEM_STATUS: ::flatbuffers::VOffsetT = 4;
+  pub const VT_GUIDED: ::flatbuffers::VOffsetT = 6;
+  pub const VT_AUTO: ::flatbuffers::VOffsetT = 8;
+  pub const VT_MANUAL: ::flatbuffers::VOffsetT = 10;
+  pub const VT_ARMED: ::flatbuffers::VOffsetT = 12;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    HeartbeatHealthPacket { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args HeartbeatHealthPacketArgs
+  ) -> ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'bldr>> {
+    let mut builder = HeartbeatHealthPacketBuilder::new(_fbb);
+    builder.add_armed(args.armed);
+    builder.add_manual(args.manual);
+    builder.add_auto(args.auto);
+    builder.add_guided(args.guided);
+    builder.add_system_status(args.system_status);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn system_status(&self) -> Status {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<Status>(HeartbeatHealthPacket::VT_SYSTEM_STATUS, Some(Status::Active)).unwrap()}
+  }
+  #[inline]
+  pub fn guided(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(HeartbeatHealthPacket::VT_GUIDED, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn auto(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(HeartbeatHealthPacket::VT_AUTO, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn manual(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(HeartbeatHealthPacket::VT_MANUAL, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn armed(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(HeartbeatHealthPacket::VT_ARMED, Some(false)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for HeartbeatHealthPacket<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<Status>("system_status", Self::VT_SYSTEM_STATUS, false)?
+     .visit_field::<bool>("guided", Self::VT_GUIDED, false)?
+     .visit_field::<bool>("auto", Self::VT_AUTO, false)?
+     .visit_field::<bool>("manual", Self::VT_MANUAL, false)?
+     .visit_field::<bool>("armed", Self::VT_ARMED, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct HeartbeatHealthPacketArgs {
+    pub system_status: Status,
+    pub guided: bool,
+    pub auto: bool,
+    pub manual: bool,
+    pub armed: bool,
+}
+impl<'a> Default for HeartbeatHealthPacketArgs {
+  #[inline]
+  fn default() -> Self {
+    HeartbeatHealthPacketArgs {
+      system_status: Status::Active,
+      guided: false,
+      auto: false,
+      manual: false,
+      armed: false,
     }
-} // pub mod Heartbeat
+  }
+}
+
+pub struct HeartbeatHealthPacketBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> HeartbeatHealthPacketBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_system_status(&mut self, system_status: Status) {
+    self.fbb_.push_slot::<Status>(HeartbeatHealthPacket::VT_SYSTEM_STATUS, system_status, Status::Active);
+  }
+  #[inline]
+  pub fn add_guided(&mut self, guided: bool) {
+    self.fbb_.push_slot::<bool>(HeartbeatHealthPacket::VT_GUIDED, guided, false);
+  }
+  #[inline]
+  pub fn add_auto(&mut self, auto: bool) {
+    self.fbb_.push_slot::<bool>(HeartbeatHealthPacket::VT_AUTO, auto, false);
+  }
+  #[inline]
+  pub fn add_manual(&mut self, manual: bool) {
+    self.fbb_.push_slot::<bool>(HeartbeatHealthPacket::VT_MANUAL, manual, false);
+  }
+  #[inline]
+  pub fn add_armed(&mut self, armed: bool) {
+    self.fbb_.push_slot::<bool>(HeartbeatHealthPacket::VT_ARMED, armed, false);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> HeartbeatHealthPacketBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    HeartbeatHealthPacketBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for HeartbeatHealthPacket<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("HeartbeatHealthPacket");
+      ds.field("system_status", &self.system_status());
+      ds.field("guided", &self.guided());
+      ds.field("auto", &self.auto());
+      ds.field("manual", &self.manual());
+      ds.field("armed", &self.armed());
+      ds.finish()
+  }
+}
+#[inline]
+/// Verifies that a buffer of bytes contains a `HeartbeatHealthPacket`
+/// and returns it.
+/// Note that verification is still experimental and may not
+/// catch every error, or be maximally performant. For the
+/// previous, unchecked, behavior use
+/// `root_as_heartbeat_health_packet_unchecked`.
+pub fn root_as_heartbeat_health_packet(buf: &[u8]) -> Result<HeartbeatHealthPacket<'_>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::root::<HeartbeatHealthPacket>(buf)
+}
+#[inline]
+/// Verifies that a buffer of bytes contains a size prefixed
+/// `HeartbeatHealthPacket` and returns it.
+/// Note that verification is still experimental and may not
+/// catch every error, or be maximally performant. For the
+/// previous, unchecked, behavior use
+/// `size_prefixed_root_as_heartbeat_health_packet_unchecked`.
+pub fn size_prefixed_root_as_heartbeat_health_packet(buf: &[u8]) -> Result<HeartbeatHealthPacket<'_>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::size_prefixed_root::<HeartbeatHealthPacket>(buf)
+}
+#[inline]
+/// Verifies, with the given options, that a buffer of bytes
+/// contains a `HeartbeatHealthPacket` and returns it.
+/// Note that verification is still experimental and may not
+/// catch every error, or be maximally performant. For the
+/// previous, unchecked, behavior use
+/// `root_as_heartbeat_health_packet_unchecked`.
+pub fn root_as_heartbeat_health_packet_with_opts<'b, 'o>(
+  opts: &'o ::flatbuffers::VerifierOptions,
+  buf: &'b [u8],
+) -> Result<HeartbeatHealthPacket<'b>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::root_with_opts::<HeartbeatHealthPacket<'b>>(opts, buf)
+}
+#[inline]
+/// Verifies, with the given verifier options, that a buffer of
+/// bytes contains a size prefixed `HeartbeatHealthPacket` and returns
+/// it. Note that verification is still experimental and may not
+/// catch every error, or be maximally performant. For the
+/// previous, unchecked, behavior use
+/// `root_as_heartbeat_health_packet_unchecked`.
+pub fn size_prefixed_root_as_heartbeat_health_packet_with_opts<'b, 'o>(
+  opts: &'o ::flatbuffers::VerifierOptions,
+  buf: &'b [u8],
+) -> Result<HeartbeatHealthPacket<'b>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::size_prefixed_root_with_opts::<HeartbeatHealthPacket<'b>>(opts, buf)
+}
+#[inline]
+/// Assumes, without verification, that a buffer of bytes contains a HeartbeatHealthPacket and returns it.
+/// # Safety
+/// Callers must trust the given bytes do indeed contain a valid `HeartbeatHealthPacket`.
+pub unsafe fn root_as_heartbeat_health_packet_unchecked(buf: &[u8]) -> HeartbeatHealthPacket<'_> {
+  unsafe { ::flatbuffers::root_unchecked::<HeartbeatHealthPacket>(buf) }
+}
+#[inline]
+/// Assumes, without verification, that a buffer of bytes contains a size prefixed HeartbeatHealthPacket and returns it.
+/// # Safety
+/// Callers must trust the given bytes do indeed contain a valid size prefixed `HeartbeatHealthPacket`.
+pub unsafe fn size_prefixed_root_as_heartbeat_health_packet_unchecked(buf: &[u8]) -> HeartbeatHealthPacket<'_> {
+  unsafe { ::flatbuffers::size_prefixed_root_unchecked::<HeartbeatHealthPacket>(buf) }
+}
+#[inline]
+pub fn finish_heartbeat_health_packet_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(
+    fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+    root: ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'a>>) {
+  fbb.finish(root, None);
+}
+
+#[inline]
+pub fn finish_size_prefixed_heartbeat_health_packet_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>, root: ::flatbuffers::WIPOffset<HeartbeatHealthPacket<'a>>) {
+  fbb.finish_size_prefixed(root, None);
+}
+}  // pub mod Heartbeat
+

@@ -35,3 +35,6 @@ develop:
 
 sitl:
     @uv run Tools/autotest/sim_vehicle.py -v copter --console --map -w
+
+mavproxy:
+    @uv run mavproxy.py --master=udp:127.0.0.1:14550 --console --map

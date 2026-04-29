@@ -13,15 +13,15 @@ enum FrameType: ubyte {
 
 
 table Waypoint {
-    hold_time: float32; //(seconds)
+    speed: float32; // (m/s) Ground speed, less than 0 (-1) for default
     lat: int32;
     lon: int32;
-    alt: float32;
+    alt: float32; // m
 
-    acceptance_radius: float32; // (>= 0 meters) (if the sphere with this radius is hit, the waypoint counts as reached)
-    pass_radius: float32; // (>= 0 meters) 0 to pass through the WP, if > 0 radius to pass by WP
+    acceptance_radius: float32; // Positive values only, direction is controlled by Yaw value. A value of zero or NaN is ignored.
 
-    heading: float32;
+
+    heading: float32; // (rad) Yaw heading (heading reference defined in Bitmask field). NaN to use the current system yaw heading mode (e.g. yaw towards next waypoint, yaw to home, etc.). For planes indicates loiter direction (0: clockwise, 1: counter clockwise)
     frame: FrameType;
 }
 

@@ -127,14 +127,13 @@ impl<'a> ::flatbuffers::Follow<'a> for Waypoint<'a> {
 }
 
 impl<'a> Waypoint<'a> {
-  pub const VT_HOLD_TIME: ::flatbuffers::VOffsetT = 4;
+  pub const VT_SPEED: ::flatbuffers::VOffsetT = 4;
   pub const VT_LAT: ::flatbuffers::VOffsetT = 6;
   pub const VT_LON: ::flatbuffers::VOffsetT = 8;
   pub const VT_ALT: ::flatbuffers::VOffsetT = 10;
   pub const VT_ACCEPTANCE_RADIUS: ::flatbuffers::VOffsetT = 12;
-  pub const VT_PASS_RADIUS: ::flatbuffers::VOffsetT = 14;
-  pub const VT_HEADING: ::flatbuffers::VOffsetT = 16;
-  pub const VT_FRAME: ::flatbuffers::VOffsetT = 18;
+  pub const VT_HEADING: ::flatbuffers::VOffsetT = 14;
+  pub const VT_FRAME: ::flatbuffers::VOffsetT = 16;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -147,23 +146,22 @@ impl<'a> Waypoint<'a> {
   ) -> ::flatbuffers::WIPOffset<Waypoint<'bldr>> {
     let mut builder = WaypointBuilder::new(_fbb);
     builder.add_heading(args.heading);
-    builder.add_pass_radius(args.pass_radius);
     builder.add_acceptance_radius(args.acceptance_radius);
     builder.add_alt(args.alt);
     builder.add_lon(args.lon);
     builder.add_lat(args.lat);
-    builder.add_hold_time(args.hold_time);
+    builder.add_speed(args.speed);
     builder.add_frame(args.frame);
     builder.finish()
   }
 
 
   #[inline]
-  pub fn hold_time(&self) -> f32 {
+  pub fn speed(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<f32>(Waypoint::VT_HOLD_TIME, Some(0.0)).unwrap()}
+    unsafe { self._tab.get::<f32>(Waypoint::VT_SPEED, Some(0.0)).unwrap()}
   }
   #[inline]
   pub fn lat(&self) -> i32 {
@@ -194,13 +192,6 @@ impl<'a> Waypoint<'a> {
     unsafe { self._tab.get::<f32>(Waypoint::VT_ACCEPTANCE_RADIUS, Some(0.0)).unwrap()}
   }
   #[inline]
-  pub fn pass_radius(&self) -> f32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<f32>(Waypoint::VT_PASS_RADIUS, Some(0.0)).unwrap()}
-  }
-  #[inline]
   pub fn heading(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
@@ -222,12 +213,11 @@ impl ::flatbuffers::Verifiable for Waypoint<'_> {
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
-     .visit_field::<f32>("hold_time", Self::VT_HOLD_TIME, false)?
+     .visit_field::<f32>("speed", Self::VT_SPEED, false)?
      .visit_field::<i32>("lat", Self::VT_LAT, false)?
      .visit_field::<i32>("lon", Self::VT_LON, false)?
      .visit_field::<f32>("alt", Self::VT_ALT, false)?
      .visit_field::<f32>("acceptance_radius", Self::VT_ACCEPTANCE_RADIUS, false)?
-     .visit_field::<f32>("pass_radius", Self::VT_PASS_RADIUS, false)?
      .visit_field::<f32>("heading", Self::VT_HEADING, false)?
      .visit_field::<FrameType>("frame", Self::VT_FRAME, false)?
      .finish();
@@ -235,12 +225,11 @@ impl ::flatbuffers::Verifiable for Waypoint<'_> {
   }
 }
 pub struct WaypointArgs {
-    pub hold_time: f32,
+    pub speed: f32,
     pub lat: i32,
     pub lon: i32,
     pub alt: f32,
     pub acceptance_radius: f32,
-    pub pass_radius: f32,
     pub heading: f32,
     pub frame: FrameType,
 }
@@ -248,12 +237,11 @@ impl<'a> Default for WaypointArgs {
   #[inline]
   fn default() -> Self {
     WaypointArgs {
-      hold_time: 0.0,
+      speed: 0.0,
       lat: 0,
       lon: 0,
       alt: 0.0,
       acceptance_radius: 0.0,
-      pass_radius: 0.0,
       heading: 0.0,
       frame: FrameType::GLOBAL,
     }
@@ -266,8 +254,8 @@ pub struct WaypointBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
 }
 impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> WaypointBuilder<'a, 'b, A> {
   #[inline]
-  pub fn add_hold_time(&mut self, hold_time: f32) {
-    self.fbb_.push_slot::<f32>(Waypoint::VT_HOLD_TIME, hold_time, 0.0);
+  pub fn add_speed(&mut self, speed: f32) {
+    self.fbb_.push_slot::<f32>(Waypoint::VT_SPEED, speed, 0.0);
   }
   #[inline]
   pub fn add_lat(&mut self, lat: i32) {
@@ -284,10 +272,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> WaypointBuilder<'a, 'b, A> {
   #[inline]
   pub fn add_acceptance_radius(&mut self, acceptance_radius: f32) {
     self.fbb_.push_slot::<f32>(Waypoint::VT_ACCEPTANCE_RADIUS, acceptance_radius, 0.0);
-  }
-  #[inline]
-  pub fn add_pass_radius(&mut self, pass_radius: f32) {
-    self.fbb_.push_slot::<f32>(Waypoint::VT_PASS_RADIUS, pass_radius, 0.0);
   }
   #[inline]
   pub fn add_heading(&mut self, heading: f32) {
@@ -315,12 +299,11 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> WaypointBuilder<'a, 'b, A> {
 impl ::core::fmt::Debug for Waypoint<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("Waypoint");
-      ds.field("hold_time", &self.hold_time());
+      ds.field("speed", &self.speed());
       ds.field("lat", &self.lat());
       ds.field("lon", &self.lon());
       ds.field("alt", &self.alt());
       ds.field("acceptance_radius", &self.acceptance_radius());
-      ds.field("pass_radius", &self.pass_radius());
       ds.field("heading", &self.heading());
       ds.field("frame", &self.frame());
       ds.finish()
