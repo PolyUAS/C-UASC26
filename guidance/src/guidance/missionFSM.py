@@ -1,7 +1,7 @@
 import asyncio
 import math
 import os
-from abc import ABC, ABCMeta
+from abc import ABC, ABCMeta, abstractmethod
 from os import environ
 
 import flatbuffers
@@ -36,6 +36,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     LAND = State()
     RETURN_TO_HOME = State()
 
+    on_reinit: TransitionList = INIT.to(INIT)
     on_go: TransitionList = INIT.to(LAUNCH)
     on_return: TransitionList = RETURN_TO_HOME.to(LAND)
     on_finish: TransitionList = LAND.to(COMPLETE)
@@ -44,6 +45,8 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
     goto_lock = asyncio.Lock()
 
+    home: WaypointStruct
+
     def __init__(self, session: Session, home: WaypointStruct):
         """
         Initializer for the FSM base class.
@@ -51,6 +54,8 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         """
         super().__init__()
         self.session = session
+
+        self.home = home
 
         self.target_pos_pub = session.declare_publisher("control/in/target_pos")
 
@@ -63,6 +68,16 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
             payload_input_sub_str = "control/in/payload"
 
         self.payload_sub = session.declare_publisher(payload_input_sub_str)
+
+        self.on_reinit.on(self._reset_home)
+
+    def _reset_home(self):
+
+        buf = self.position_sub.recv()
+
+        w = WaypointFB.Waypoint.GetRootAs(buf)
+
+        self.home = WaypointStruct(w.Lat(), w.Lon(), w.Alt())
 
     def set_geofence(self, packet: GeofencePacket):
         coords_len = packet.PointsLength()
@@ -144,3 +159,18 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         payload = bytes(builder.Output())
 
         self.payload_sub.put(payload)
+
+    @abstractmethod
+    async def run(self) -> None:
+        """
+        Main mission logic. Subclasses must implement this.
+        Should drive the FSM from LAUNCH through to COMPLETE.
+        """
+        ...
+
+    @abstractmethod
+    def on_enter_LAUNCH(self) -> None:
+        """
+        Called automatically by statemachine when entering LAUNCH state.
+        Subclasses must define what happens at launch.
+        """

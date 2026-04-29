@@ -1,26 +1,19 @@
 from enum import Enum
 
-from guidance.missionFSM import StateMachineBaseClass
+from zenoh import Session
+
+from guidance.missionFSM import AbstractFSMBaseClass
 
 
-class TargetLocalizationFSM(StateMachineBaseClass):
-    class State(Enum):
-        SEARCH_PATTERN = "search_pattern"
-        DETECT = "detect"
-        TRACK = "track"
-        GEOLOCALIZE = "geolocalize"
-        CONFIDENCE_GATE = "confidence_gate"
-        REPORT = "report"
-
-    def __init__(self):
-        super().__init__("Target ID Localization", time_limit=600.0)
-        self.state = self.State.SEARCH_PATTERN
+class TargetLocalizationFSM(AbstractFSMBaseClass):
+    def __init__(
+        self,
+        session: Session,
+    ):
+        super().__init__()
 
     def execute_mission_logic(self):
         return
-
-    def calculate_score(self) -> float:
-        return 0.0
 
     def get_telemetry_requirements(self) -> dict:
         return {

@@ -87,27 +87,8 @@ pub async fn get_missions(
                     let cmd = data.command;
 
                     missions.push(MissionSegment::new(cmd, data));
-
-                    // match cmd {
-                    //     mavlink::ardupilotmega::MavCmd::MAV_CMD_NAV_WAYPOINT => {
-                    //         let mut fbb = FlatBufferBuilder::new();
-                    //         Waypoint::create(
-                    //             &mut fbb,
-                    //             &WaypointArgs {
-                    //                 hold_time: data.param1,
-                    //                 heading_target: data.param2,
-                    //                 pass_rad: data.param3,
-                    //                 accept_rad: data.param4,
-                    //                 lat: data.x,
-                    //                 lon: data.y,
-                    //                 alt: data.z,
-                    //             },
-                    //         );
-
-                    //     }
-                    //     _ => {}
-                    // }
                 }
+                Mav
                 _ => {}
             },
             _ => {}
