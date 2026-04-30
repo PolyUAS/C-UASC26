@@ -359,6 +359,8 @@ dependencies = [
  "ctrlc",
  "flatbuffers",
  "mavlink",
+ "serialport",
+ "siyi-protocol",
  "tokio",
  "zenoh",
  "zenoh-ext",
@@ -1484,6 +1486,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1744e39d1d6a9948f4f388969627434e31128196de472883b39f148769bfe30a"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "libudev"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78b324152da65df7bb95acfcaab55e3097ceaab02fb19b228a9eb74d55f135e0"
+dependencies = [
+ "libc",
+ "libudev-sys",
+]
+
+[[package]]
+name = "libudev-sys"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
+dependencies = [
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]
@@ -2880,6 +2902,7 @@ dependencies = [
  "core-foundation 0.10.1",
  "core-foundation-sys",
  "io-kit-sys",
+ "libudev",
  "mach2",
  "nix 0.26.4",
  "scopeguard",
@@ -2980,6 +3003,12 @@ name = "siphasher"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
+
+[[package]]
+name = "siyi-protocol"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "746c785cd80469a87135c1bfa1dd421860ea7058d9dd2ec78792ff0e9ec0d82f"
 
 [[package]]
 name = "slab"
