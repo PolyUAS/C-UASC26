@@ -1,0 +1,19 @@
+
+
+table Entity {
+    lat: int32;
+    lon: int32;
+    alt:float32; // (meters)
+
+    class_id: string;
+    metadata: string;
+    confidence : float64;
+}
+
+
+table WorldFrame {
+    entities: [Entity];
+}
+
+
+root_type WorldFrame;

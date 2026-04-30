@@ -1,26 +1,28 @@
 # topics.md
+
 ---
+
 # OUTPUTS
+
 ## Telem
-- control/telem/gl_pos_int
-- control/telem/attitute
-- control/telem/variance
-- control/telem/nav_status
-- control/telem/gimbal
+- [x] control/telem/gl_pos_int => position.fbs
+- [x] control/telem/attitute => attitude.fbs
+- [x] control/telem/gimbal => gimbal.fbs
 ## RC
-- control/rc/channels
-- control/rc/servos
+- [ ] control/rc/channels
+
+
 ## Health
-- control/health/battery
-- control/health/power_status
-- control/health/heartbeat
-- control/health/sys_status
-- control/health/mcu_status
-- control/health/gps_status
+- [x] control/health/battery => battery.fbs
+- [x] control/health/heartbeat => heartbeat.fbs
+
+
+
 # INPUTS
+- [x] control/in/gimbal => gimbal.fbs
+- [x] control/in/target_pos => waypoint.fbs
+- [x] control/in/squidarm => squidarm.fbs
+- [ ] control/in/payload => squidarm.fbs (BUT IGNORES y) 
 
-# QUERIES
-- control/in/gimbal (control/out/gimbal)
 
-
-TODO GIMBAL HEALTH
+TODO GIMBAL HEALTH???

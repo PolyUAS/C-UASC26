@@ -1,0 +1,10 @@
+#[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
+pub mod attitude_generated;
+#[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
+pub mod detections_generated;
+#[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
+pub mod gimbal_generated;
+#[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
+pub mod position_generated;
+#[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
+pub mod world_generated;

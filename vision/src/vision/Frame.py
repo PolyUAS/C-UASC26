@@ -28,14 +28,14 @@ class Frame(object):
     def Width(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
         return 0
 
     # Frame
     def Height(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
         return 0
 
     # Frame
@@ -77,13 +77,13 @@ def Start(builder):
     FrameStart(builder)
 
 def FrameAddWidth(builder, width):
-    builder.PrependUint32Slot(0, width, 0)
+    builder.PrependUint16Slot(0, width, 0)
 
 def AddWidth(builder, width):
     FrameAddWidth(builder, width)
 
 def FrameAddHeight(builder, height):
-    builder.PrependUint32Slot(1, height, 0)
+    builder.PrependUint16Slot(1, height, 0)
 
 def AddHeight(builder, height):
     FrameAddHeight(builder, height)

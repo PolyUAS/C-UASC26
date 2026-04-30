@@ -28,28 +28,28 @@ class Detection(object):
     def CtrX(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
         return 0
 
     # Detection
     def CtrY(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
         return 0
 
     # Detection
     def Width(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
         return 0
 
     # Detection
     def Height(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Uint16Flags, o + self._tab.Pos)
         return 0
 
     # Detection
@@ -80,25 +80,25 @@ def Start(builder):
     DetectionStart(builder)
 
 def DetectionAddCtrX(builder, ctrX):
-    builder.PrependUint32Slot(0, ctrX, 0)
+    builder.PrependUint16Slot(0, ctrX, 0)
 
 def AddCtrX(builder, ctrX):
     DetectionAddCtrX(builder, ctrX)
 
 def DetectionAddCtrY(builder, ctrY):
-    builder.PrependUint32Slot(1, ctrY, 0)
+    builder.PrependUint16Slot(1, ctrY, 0)
 
 def AddCtrY(builder, ctrY):
     DetectionAddCtrY(builder, ctrY)
 
 def DetectionAddWidth(builder, width):
-    builder.PrependUint32Slot(2, width, 0)
+    builder.PrependUint16Slot(2, width, 0)
 
 def AddWidth(builder, width):
     DetectionAddWidth(builder, width)
 
 def DetectionAddHeight(builder, height):
-    builder.PrependUint32Slot(3, height, 0)
+    builder.PrependUint16Slot(3, height, 0)
 
 def AddHeight(builder, height):
     DetectionAddHeight(builder, height)

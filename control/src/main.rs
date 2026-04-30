@@ -1,36 +1,43 @@
+use crate::gimbal_utils::spawn_gimbal_task;
+use crate::goto::create_movement_subscriber;
 use mavlink::AsyncMavConnection;
-
 use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::MavMessage;
-
-use tokio::sync::broadcast::Sender;
 
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 
 use zenoh::{self};
 
+mod fc_header_utils;
 mod generated;
-mod gimbal;
+mod geofence;
+mod gimbal_utils;
+mod missions;
+mod receiver_utils;
+mod squidarm;
 mod telemetry;
 
-use gimbal::create_gimbal_subscriber;
-use gimbal::spawn_gimbal_task;
-use telemetry::telemetry_loop;
+mod goto;
 
-use generated::attitude_generated;
-use generated::geofence_generated;
-use generated::gimbal_generated;
-use generated::position_generated;
+mod heartbeat;
 
-mod geofence;
+use generated::*;
 
 use geofence::create_geofence_queryable;
+
+use gimbal_utils::create_gimbal_subscriber;
+
+use missions::get_missions;
+
+use crate::squidarm::init_squidarm;
+use telemetry::telemetry_loop;
 
 type AsyncMavConn = Box<dyn AsyncMavConnection<MavMessage> + Send + Sync>;
 type SharedAsyncMavConn = Arc<AsyncMavConn>;
@@ -47,6 +54,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     .await
     .map_err(|_| "Connection timed out after 500 ms")?
     .map_err(|e| format!("Failed to connect to A8 Mini: {e}"))?;
+
+    let shared_camera = Arc::new(a8mini_camera);
 
     // Setup Zenoh
     let session =
@@ -76,23 +85,37 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let attitude_pub = session.declare_publisher("control/telem/attitude").await?;
 
-    let shared_camera = Arc::new(a8mini_camera);
+    let battery_publisher = session.declare_publisher("control/health/battery").await?;
+    let heartbeat_publisher = session
+        .declare_publisher("control/health/heartbeat")
+        .await?;
 
-    let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32));
+    let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32, 1.0f32)); // zoom 1.0 by default
     // Setup gimbal subscriber
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
 
     // In a dedicated task:
-    spawn_gimbal_task(shared_camera.clone(), gimbal_rx);
+    spawn_gimbal_task(shared_camera.clone(), gimbal_rx.clone(), &session);
+    let _goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
 
     let running_telem = running.clone(); // assuming running: Arc<AtomicBool> or similar
 
+    let heartbeat_handle = heartbeat::create_heartbeat_advertiser(running.clone(), vehicle.clone());
+
     let telem_handle = tokio::spawn({
         let mut telem_rx = bc_tx.subscribe(); // cheap, can move in directly
         async move {
-            telemetry_loop(&mut telem_rx, &position_pub, &attitude_pub, &running_telem).await;
+            telemetry_loop(
+                &mut telem_rx,
+                &position_pub,
+                &attitude_pub,
+                &battery_publisher,
+                &heartbeat_publisher,
+                &running_telem,
+            )
+            .await;
         }
     });
 
@@ -103,6 +126,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _geofence_query =
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
 
+    get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
+    let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
+
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
         running.store(false, Ordering::Release);
@@ -111,8 +137,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Join threads
 
-    let tup = tokio::join!(telem_handle);
+    let tup = tokio::join!(telem_handle, heartbeat_handle);
     tup.0.ok();
+    tup.1.ok();
 
     session
         .close()
@@ -128,13 +155,19 @@ fn create_mavlink_broadcast_thread(
     vehicle: &SharedAsyncMavConn,
 ) {
     let active = running.clone();
-    let rx_bc_rx = bc_tx.clone();
-    let reciever_clone = vehicle.clone();
+    let broadcaster = bc_tx.clone();
+    let vehicle_local = vehicle.clone();
+
     // Receiver task
     tokio::spawn(async move {
         while active.load(Ordering::Acquire) {
-            if let Some(msg_tuple) = reciever_clone.recv().await.ok() {
-                rx_bc_rx.send(msg_tuple).ok();
+            if let Some(msg_tuple) = vehicle_local.recv().await.ok() {
+                let header = msg_tuple.0;
+
+                broadcaster.send(msg_tuple).ok();
+
+                // ik what im doing here
+                fc_header_utils::set_headers_safely(header.system_id, header.component_id);
             }
         }
     });

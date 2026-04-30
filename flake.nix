@@ -4,8 +4,8 @@
   inputs = {
     nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
     flake-parts.url = github:hercules-ci/flake-parts;
-    rust-demo-sub.url = ./rust_sub;
-    python-demo-sub.url = ./python_sub;
+
+
 
     zenohd.url = ./zenohd;
 
@@ -55,8 +55,8 @@
       in {
         # Expose subproject packages for composition
         packages = {
-          rust_demo = inputs.rust-demo-sub.packages.${system}.default;
-          python_demo = inputs.python-demo-sub.packages.${system}.default;
+
+
 
           vision = inputs.vision.packages.${system}.default;
 
@@ -72,30 +72,34 @@
           mujoco-sim = inputs.mujoco-sim.packages.${system}.default;
 
           # Launcher: Spins up all with shared config
-          demo = pkgs.writeShellApplication {
-            name = "demo-ping-pong-zenoh";
+
+          generate_schemas = pkgs.writeShellApplication {
+            name = "generate_schemas";
             runtimeInputs = [
-              self'.packages.rust_demo
-              self'.packages.python_demo
+              pkgs.flatbuffers
             ];
             text = ''
-              export ZENOH_CONFIG=${sharedConfig}
-              echo "Launching with shared config: $ZENOH_CONFIG"
-              # Start processes in background
-              hello &
-              PYTHON_PID=$!
-              rust-zenoh-app &
-              RUST_PID=$!
-              # Trap EXIT and SIGINT (Ctrl+C)
-              trap 'kill $PYTHON_PID $RUST_PID 2>/dev/null' EXIT SIGINT
-              # Wait for both processes
-              wait $PYTHON_PID $RUST_PID
+                for dir in */; do
+                    [ -d "$dir" ] || continue
+
+                    # strip trailing slash for cleaner paths
+                    d="$dir"
+
+                    # check if either pattern exists
+                    if [ -d "$d/src/generated" ]; then
+                        flatc --rust   -o "$d/src/generated/"     schemas/* 2>/dev/null
+                    fi
+
+                    if [ -d "$d/src/$d/generated" ] && [ ! -d "$d/src/generated" ]; then
+                        flatc --python -o "$d/src/$d/generated/" schemas/* 2>/dev/null
+                    fi
+                done
             '';
           };
 
 
 
-          default = self'.packages.demo;
+          default = self'.packages.reset_jetson_network;
 
           jetson_set_dev_power = pkgs.writeShellApplication {
             name = "jetson_set_dev_power";
@@ -127,10 +131,6 @@
 
         devShells.default = pkgs.mkShell {
           packages = [
-            self'.packages.demo
-            self'.packages.rust_demo
-            self'.packages.python_demo
-
 
             self'.packages.vision
 
@@ -142,15 +142,24 @@
             pkgs.flatbuffers
             self'.packages.zenohd
             pkgs.btop
+<<<<<<< HEAD
             pkgs.mosh
+=======
+            self'.packages.generate_schemas
+
+>>>>>>> GNC
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+
+
+          env.DRONE_NAME = "HORUS";
+          # env.DRONE_NAME = "OSIRUS";
+
           shellHook = ''
             export ZENOH_CONFIG=${sharedConfig}
             alias j="just"
-            echo "Run 'demo-ping-pong-zenoh' to start demo."
             echo "just is aliased to j"
           '';
         };

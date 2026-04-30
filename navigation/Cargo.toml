@@ -9,6 +9,9 @@ zenoh = {version = "1", features = ["shared-memory"]}
 
 flatbuffers = "25.12.19"
 
+nalgebra = "0.34.2"
+
+
 [[bin]]
 name = "navigation"
 path = "src/main.rs"

@@ -1,137 +1,176 @@
-# LKS
+import asyncio
+import math
+import os
+from abc import ABC, ABCMeta, abstractmethod
+from os import environ
 
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Optional
-import time
-import time
+import flatbuffers
+from statemachine import State, StateMachine
+from statemachine.transition_list import TransitionList
+from zenoh import Session
 
-
-class MissionState(Enum):
-    """Common states across all missions"""
-
-    IDLE = "idle"
-    PREFLIGHT = "preflight"
-    TAKEOFF = "takeoff"
-    EXECUTING = "executing"
-    RTL = "rtl"
-    LANDING = "landing"
-    COMPLETE = "complete"
-    ABORTED = "aborted"
-    EMERGENCY = "emergency"
+import guidance.generated.Control_Squid.Squidarm as SquidarmFB
+import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
+import guidance.generated.waypoint.FrameType as FrameTypeFB
+import guidance.generated.waypoint.Waypoint as WaypointFB
+from guidance.generated.Geofence.Coords import Coords
+from guidance.generated.Geofence.GeofencePacket import GeofencePacket
+from guidance.geo_utils import WaypointStruct
 
 
-class MissionStateMachine(ABC):
-    """Base class for all mission FSMs"""
+class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
+    pass
 
-    def __init__(self, mission_name: str, time_limit: float = 600.0):
-        self.mission_name = mission_name
-        self.time_limit = time_limit  # 10 minutes default
-        self.current_state = MissionState.IDLE
-        self.start_time: Optional[float] = None
-        self.geofence_breached = False
-        self.geofence_bounds: Optional[dict] = None  # {"min_lat", "max_lat", "min_lon", "max_lon", "max_alt"}
 
-    def set_geofence(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float, max_alt: float):
-        """Define the geofence boundaries"""
-        self.geofence_bounds = {
-            "min_lat": min_lat,
-            "max_lat": max_lat,
-            "min_lon": min_lon,
-            "max_lon": max_lon,
-            "max_alt": max_alt,
-        }
+class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
+    drone_name = os.environ.get("DRONE_NAME")
 
-    # Concrete methods (shared logic)
-    def check_geofence(self, position: dict) -> bool:
+    INIT = State(initial=True)
+    LAUNCH = State()
+
+    ############################################
+    # Things go here in non-abstract classes
+    ############################################
+
+    COMPLETE = State(final=True)
+    LAND = State()
+    RETURN_TO_HOME = State()
+
+    on_reinit: TransitionList = INIT.to(INIT)
+    on_go: TransitionList = INIT.to(LAUNCH)
+    on_return: TransitionList = RETURN_TO_HOME.to(LAND)
+    on_finish: TransitionList = LAND.to(COMPLETE)
+
+    geofence: list[Coords] = []
+
+    goto_lock = asyncio.Lock()
+
+    home: WaypointStruct
+
+    def __init__(self, session: Session, home: WaypointStruct):
         """
-        All missions need this.
-        position should be a dict with keys: 'lat', 'lon', 'alt'
-        Returns True if within geofence, False if breached.
+        Initializer for the FSM base class.
+        home must have an alt that is in the global frame.
         """
-        if self.geofence_bounds is None:
-            # No geofence defined — assume safe
-            return True
+        super().__init__()
+        self.session = session
 
-        lat = position.get("lat", 0.0)
-        lon = position.get("lon", 0.0)
-        alt = position.get("alt", 0.0)
+        self.home = home
 
-        within = (
-            self.geofence_bounds["min_lat"] <= lat <= self.geofence_bounds["max_lat"]
-            and self.geofence_bounds["min_lon"] <= lon <= self.geofence_bounds["max_lon"]
-            and alt <= self.geofence_bounds["max_alt"]
-        )
+        self.target_pos_pub = session.declare_publisher("control/in/target_pos")
 
-        if not within:
-            self.geofence_breached = True
-            self.handle_emergency()
+        self.position_sub = session.declare_subscriber("control/telem/gl_pos_int")
 
-        return within
+        payload_input_sub_str = ""
+        if os.environ.get("DRONE_NAME") == "HORUS":
+            payload_input_sub_str = "control/in/squidarm"
+        elif os.environ.get("DRONE_NAME") == "OSIRUS":
+            payload_input_sub_str = "control/in/payload"
 
-    def handle_emergency(self):
-        """Standardized emergency response — transition to EMERGENCY and initiate RTL"""
-        previous_state = self.current_state
-        self.current_state = MissionState.EMERGENCY
-        print(
-            f"[{self.mission_name}] EMERGENCY triggered! "
-            f"Transitioning from {previous_state.value} to {self.current_state.value}. "
-            f"Geofence breached: {self.geofence_breached}"
-        )
+        self.payload_sub = session.declare_publisher(payload_input_sub_str)
 
-    def check_time_limit(self) -> bool:
+        self.on_reinit.on(self._reset_home)
+
+    def _reset_home(self):
+
+        buf = self.position_sub.recv()
+
+        w = WaypointFB.Waypoint.GetRootAs(buf)
+
+        self.home = WaypointStruct(w.Lat(), w.Lon(), w.Alt())
+
+    def set_geofence(self, packet: GeofencePacket):
+        coords_len = packet.PointsLength()
+        if coords_len:  # guards against None and 0
+            self.geofence = []
+            for i in range(coords_len):
+                pt = packet.Points(i)
+                if pt is not None:
+                    self.geofence.append(pt)
+
+    async def navigate_waypoint(
+        self,
+        waypoint: WaypointStruct,
+        a_rad: float,  # a_rad is in meters
+        frame: int = FrameTypeFB.FrameType.GLOBAL,
+        hdg: float = math.nan,
+        hold_time: float = 1.0,
+        timeout: float | None = 60.0,
+    ) -> bool:
         """
-        All missions have a time limit (default 10 min).
-        Returns True if within time limit, False if exceeded.
+        Navigate to a waypoint (in ```frame```) with the given heading and acceptance radius.
+
+        returns: success value of the navigation command
+
+        waypoint lat + lon MUST BE in degE7, and alt in mm
+        ```a_rad``` (acceptance radius) is in meters
+        ```hdg``` is in degrees (or ```math.nan``` for default)
         """
+        builder = flatbuffers.Builder(0)
 
-        if self.start_time is None:
-            return True
+        WaypointFB.Start(builder)
+        WaypointFB.AddLat(builder, waypoint.lat)
+        WaypointFB.AddLon(builder, waypoint.lon)
+        WaypointFB.AddAlt(builder, waypoint.alt)
+        WaypointFB.AddHeading(builder, hdg)
+        WaypointFB.AddAcceptanceRadius(builder, a_rad)
+        WaypointFB.AddHoldTime(builder, hold_time)
+        WaypointFB.AddFrame(builder, frame)
+        waypoint = WaypointFB.End(builder)
 
-        elapsed = time.time() - self.start_time
-        if elapsed >= self.time_limit:
-            print(
-                f"[{self.mission_name}] Time limit of {self.time_limit}s exceeded "
-                f"(elapsed: {elapsed:.1f}s). Initiating RTL."
-            )
-            self.current_state = MissionState.RTL
-            return False
+        builder.Finish(waypoint)
+        payload = bytes(builder.Output())
 
-        return True
+        async with self.goto_lock:
+            self.target_pos_pub.put(payload)
 
-    def start_mission(self):
-        """Begin the mission timer and transition from IDLE to PREFLIGHT"""
+            t = waypoint
 
-        if self.current_state != MissionState.IDLE:
-            print(f"[{self.mission_name}] Cannot start mission from state {self.current_state.value}")
-            return
+            d = math.inf
 
-        self.start_time = time.time()
-        self.current_state = MissionState.PREFLIGHT
-        print(f"[{self.mission_name}] Mission started. State: {self.current_state.value}")
+            async with asyncio.timeout(timeout):  # whole-motion timeout
+                while a_rad <= d:  # while we have not breached the radius
+                    async with asyncio.timeout(0.300):  # 300 ms packet recv timeout
+                        s = self.position_sub.try_recv()
 
-    def abort_mission(self):
-        """Abort the mission from any non-terminal state"""
-        terminal_states = {MissionState.COMPLETE, MissionState.ABORTED, MissionState.EMERGENCY}
-        if self.current_state in terminal_states:
-            print(f"[{self.mission_name}] Already in terminal state {self.current_state.value}")
-            return
+                    if s is not None:
+                        payload = s.payload
+                        pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
 
-        print(f"[{self.mission_name}] Aborting mission from state {self.current_state.value}")
-        self.current_state = MissionState.ABORTED
+                        p = WaypointStruct(pos.Lat(), pos.Lon(), pos.Alt())
 
-    # Abstract methods (must implement)
+                        d = p.distance_to(t)
+
+                    await asyncio.sleep(0.300)  # 300 ms async delay
+            return a_rad <= d  # returns success value
+        # return from goto
+
+    def set_payload(self, x: float, y: float):
+        if self.drone_name == "OSIRUS":
+            y = 0.0
+
+        builder = flatbuffers.Builder(0)
+        SquidarmFB.Start(builder)
+        SquidarmFB.AddX(x, builder)
+        SquidarmFB.AddY(y, builder)
+        p = SquidarmFB.End(builder)
+
+        builder.Finish(p)
+        payload = bytes(builder.Output())
+
+        self.payload_sub.put(payload)
+
     @abstractmethod
-    def execute_mission_logic(self):
-        """Mission-specific execution"""
-        pass
+    async def run(self) -> None:
+        """
+        Main mission logic. Subclasses must implement this.
+        Should drive the FSM from LAUNCH through to COMPLETE.
+        """
+        ...
 
     @abstractmethod
-    def calculate_score(self) -> float:
-        """Each mission scores differently"""
-        pass
-
-    @abstractmethod
-    def get_telemetry_requirements(self) -> dict:
-        """What data each mission needs to log"""
-        pass
+    def on_enter_LAUNCH(self) -> None:
+        """
+        Called automatically by statemachine when entering LAUNCH state.
+        Subclasses must define what happens at launch.
+        """

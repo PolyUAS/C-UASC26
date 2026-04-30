@@ -1,10 +1,10 @@
 
 
 table Detection {
-    ctr_x: uint32;
-    ctr_y : uint32;
-    width : uint32;
-    height : uint32;
+    ctr_x: uint16;
+    ctr_y : uint16;
+    width : uint16;
+    height : uint16;
     class_id: string;
     metadata: string;
     confidence : float64;
@@ -12,9 +12,11 @@ table Detection {
 
 
 table Frame {
-    width : uint32;
-    height : uint32;
-
+    width : uint16;
+    height : uint16;
     detections : [Detection];
     metadata: string;
 }
+
+
+root_type Frame;

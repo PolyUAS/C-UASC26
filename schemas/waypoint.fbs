@@ -1,0 +1,29 @@
+namespace waypoint;
+
+
+enum FrameType: ubyte {
+    GLOBAL,
+    GLOBAL_RELATIVE_ALT,
+    LOCAL_NED,
+    LOCAL_ENU,
+    LOCAL_OFFSET_NED,
+    GLOBAL_TERRAIN_ALT,
+    BODY_FRD
+}
+
+
+table Waypoint {
+    speed: float32; // (m/s) Ground speed, less than 0 (-1) for default
+    lat: int32;
+    lon: int32;
+    alt: float32; // m
+
+    acceptance_radius: float32; // Positive values only, direction is controlled by Yaw value. A value of zero or NaN is ignored.
+
+
+    heading: float32; // (rad) Yaw heading (heading reference defined in Bitmask field). NaN to use the current system yaw heading mode (e.g. yaw towards next waypoint, yaw to home, etc.). For planes indicates loiter direction (0: clockwise, 1: counter clockwise)
+    frame: FrameType;
+}
+
+
+root_type Waypoint;
