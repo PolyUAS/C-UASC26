@@ -47,13 +47,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mavlink_conn_str =
         std::env::var("MAVLINK_CONN").unwrap_or_else(|_| "udpin:0.0.0.0:14551".to_string());
 
-    let mut port = serialport::new("/dev/ttyUSB0", 115200)
-        .timeout(Duration::from_millis(100))
-        .open()
-        .expect("failed to initialize camera UART conn");
-
-    let shared_camera = Arc::new(port);
-
     // Setup Zenoh
     let session =
         zenoh::open(zenoh::Config::from_env().unwrap_or(zenoh::Config::default())).await?;
