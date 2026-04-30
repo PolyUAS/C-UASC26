@@ -1,7 +1,4 @@
-use mavlink::{
-    ardupilotmega::MavDoRepositionFlags,
-    ardupilotmega::{MavCmd, MavFrame, MavMessage},
-};
+use mavlink::ardupilotmega::{MavCmd, MavFrame, MavMessage};
 use zenoh::{Session, pubsub::Subscriber};
 
 use crate::{
