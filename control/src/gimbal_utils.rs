@@ -1,22 +1,26 @@
-use a8mini_camera_rs::control::{A8MiniComplexCommand, A8MiniSimpleCommand};
-use a8mini_camera_rs::{A8Mini, control::Command};
 use flatbuffers::FlatBufferBuilder;
 
-use std::sync::Arc;
+use mavlink::MavHeader;
+use mavlink::ardupilotmega::{COMMAND_INT_DATA, MavCmd, MavMessage};
+
+use tokio::sync::broadcast::Receiver;
+
 use std::time::Duration;
 
 use zenoh::{self, Session};
 
-use crate::gimbal_generated;
+use crate::{SharedAsyncMavConn, fc_header_utils, gimbal_generated};
 
 const COMMAND_RATE: Duration = Duration::from_millis(500);
 
 pub fn spawn_gimbal_task(
-    cam: Arc<A8Mini>,
-    gimbal_rx: tokio::sync::watch::Receiver<(f32, f32, f32)>,
+    conn: SharedAsyncMavConn,
+    mut gimbal_rx: tokio::sync::watch::Receiver<(f32, f32, f32)>,
+    bc_rx: &mut Receiver<(MavHeader, MavMessage)>,
     session: &Session,
 ) -> tokio::task::JoinHandle<()> {
     let session = session.clone();
+    let mut bc_rx = bc_rx.resubscribe();
 
     tokio::spawn(async move {
         let gimbal_pub = session
@@ -24,75 +28,70 @@ pub fn spawn_gimbal_task(
             .await
             .expect("control critical err: failed to initialize gimbal telem publisher");
 
-        cam.send_command(A8MiniSimpleCommand::SetVideoOutputOff)
-            .await // disable the other video feeds bc we dont use them
-            .ok();
-
         let mut fbb = FlatBufferBuilder::new();
+        let (sys, comp) = fc_header_utils::wait_for_headers().await;
 
         loop {
-            if gimbal_rx.has_changed().ok() == Some(true) {
-                let (yaw, pitch, zoom) = *gimbal_rx.borrow();
+            tokio::select! {
+                // --- Inbound: gimbal attitude telemetry from FC ---
+                result = bc_rx.recv() => {
+                    match result {
+                        Ok((_, MavMessage::GIMBAL_DEVICE_ATTITUDE_STATUS(data))) => {
+                            // Quaternion → Euler. ArduPilot sends q as [w, x, y, z]
+                            let [w, x, y, z] = data.q;
 
-                cam.send_command(A8MiniComplexCommand::SetYawPitchAngle(
-                    (yaw.clamp(-135.0, 135.0) * 10.0) as i16,
-                    (pitch.clamp(-90.0, 25.0) * 10.0) as i16,
-                ))
-                .await
-                .ok();
+                            let roll  = (2.0 * (w*x + y*z))
+                                .atan2(1.0 - 2.0 * (x*x + y*y));
+                            let pitch = (2.0 * (w*y - z*x)).asin();
+                            let yaw   = (2.0 * (w*z + x*y))
+                                .atan2(1.0 - 2.0 * (y*y + z*z));
 
-                cam.send_command(ZoomCmd::new(zoom)).await.ok();
+                            fbb.reset();
+                            let pack = gimbal_generated::gimbal::State::create(
+                                &mut fbb,
+                                &gimbal_generated::gimbal::StateArgs {
+                                    yaw:   yaw.to_degrees(),
+                                    pitch: pitch.to_degrees(),
+                                    roll:  roll.to_degrees(),
+                                    zoom:  -1.0,
+                                },
+                            );
+                            fbb.finish(pack, None);
+                            gimbal_pub.put(fbb.finished_data().to_vec()).await.ok();
+                        }
+
+                        _ => {}
+                    }
+                }
+
+                // --- Outbound: send pitch/yaw commands when changed ---
+                _ = tokio::time::sleep(COMMAND_RATE) => {
+                    if gimbal_rx.has_changed().ok() == Some(true) {
+                        let (yaw, pitch, _zoom) = *gimbal_rx.borrow_and_update();
+
+                        let pitch = pitch.clamp(-135.0, 45.0).to_radians();
+                        let yaw   = yaw.clamp(-160.0, 160.0).to_radians();
+
+                        conn.send_default(&MavMessage::COMMAND_INT(COMMAND_INT_DATA {
+                            param1: pitch,
+                            param2: yaw,
+                            param3: f32::NAN,
+                            param4: f32::NAN,
+                            x: 0,
+                            y: 0,
+                            z: f32::NAN,
+                            command: MavCmd::MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW,
+                            target_system: sys,
+                            target_component: 154,
+                            frame: mavlink::ardupilotmega::MavFrame::MAV_FRAME_GLOBAL,
+                            current: 0,
+                            autocontinue: 0,
+                        })).await.ok();
+                    }
+                }
             }
-
-            if let Some(info) = cam.get_attitude_information().await.ok() {
-                fbb.reset();
-                let pack = gimbal_generated::gimbal::State::create(
-                    &mut fbb,
-                    &gimbal_generated::gimbal::StateArgs {
-                        yaw: info.theta_yaw as f32,
-                        pitch: info.theta_pitch as f32,
-                        roll: info.theta_roll as f32,
-                        zoom: -1.0, // impossible value, we dont do zoom telem
-                    },
-                );
-                fbb.finish(pack, None);
-                let payload = fbb.finished_data().to_vec();
-
-                gimbal_pub.put(payload).await.ok();
-            }
-
-            tokio::time::sleep(COMMAND_RATE).await;
         }
     })
-}
-
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-struct ZoomCmd {
-    zoom: f32,
-}
-
-impl ZoomCmd {
-    fn new(zoom: f32) -> Self {
-        ZoomCmd {
-            zoom: zoom.clamp(1.0, 6.0),
-        }
-    }
-}
-
-impl Command for ZoomCmd {
-    fn to_bytes(&self) -> Vec<u8> {
-        let int_zoom = self.zoom.floor() as u8;
-        let frac_zoom = ((self.zoom - int_zoom as f32) * 10.0).floor() as u8;
-
-        let mut byte_arr: Vec<u8> = vec![0x55, 0x66, 0x01, 0x02, 0x00, 0x00, 0x00, 0x0f];
-
-        byte_arr.push(int_zoom.clamp(0x1, 0x1e));
-        byte_arr.push(frac_zoom.clamp(0x00, 0x9));
-
-        byte_arr.extend_from_slice(&a8mini_camera_rs::checksum::crc16_calc(&byte_arr, 0));
-
-        byte_arr
-    }
 }
 
 pub async fn create_gimbal_subscriber(

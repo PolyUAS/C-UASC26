@@ -15,7 +15,6 @@
     guidance.url = ./guidance;
     navigation.url = ./navigation;
 
-    mujoco-sim.url = ./mujoco-sim;
   };
 
   outputs = inputs @ { flake-parts, ... }:

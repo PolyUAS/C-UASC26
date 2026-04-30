@@ -49,17 +49,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let mut port = serialport::new("/dev/ttyUSB0", 115200)
         .timeout(Duration::from_millis(100))
-        .open()?;
+        .open()
+        .expect("failed to initialize camera UART conn");
 
-    let a8mini_camera = tokio::time::timeout(
-        Duration::from_millis(500),
-        a8mini_camera_rs::A8Mini::connect(),
-    )
-    .await
-    .map_err(|_| "Connection timed out after 500 ms")?
-    .map_err(|e| format!("Failed to connect to A8 Mini: {e}"))?;
-
-    let shared_camera = Arc::new(a8mini_camera);
+    let shared_camera = Arc::new(port);
 
     // Setup Zenoh
     let session =
@@ -94,12 +87,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .declare_publisher("control/health/heartbeat")
         .await?;
 
-    let (gimbal_tx, gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32, 1.0f32)); // zoom 1.0 by default
+    let (gimbal_tx, mut gimbal_rx) = tokio::sync::watch::channel((0.0f32, 0.0f32, 1.0f32)); // zoom 1.0 by default
     // Setup gimbal subscriber
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
-
+    let mut grxclone = gimbal_rx.clone();
     // In a dedicated task:
-    spawn_gimbal_task(shared_camera.clone(), gimbal_rx.clone(), &session);
+    spawn_gimbal_task(vehicle.clone(), grxclone, &mut bc_tx.subscribe(), &session);
     let _goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
