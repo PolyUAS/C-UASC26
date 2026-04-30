@@ -142,12 +142,7 @@
             pkgs.flatbuffers
             self'.packages.zenohd
             pkgs.btop
-<<<<<<< HEAD
-            pkgs.mosh
-=======
             self'.packages.generate_schemas
-
->>>>>>> GNC
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
