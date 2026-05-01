@@ -17,6 +17,8 @@ tokio = { version = "1.49.0", features = ["full"] }
 zenoh = {version = ">=1.7.2", features = ["shared-memory"]}
 zenoh-ext = ">=1.7.2"
 a8mini-camera-rs = "=0.2.1"
+serialport = "4.9.0"
+siyi-protocol = { version = "0.1.0", features = ["a8mini", "ttl"] }
 
 [[bin]]
 name = "control"

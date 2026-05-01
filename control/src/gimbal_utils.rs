@@ -12,7 +12,7 @@ use crate::gimbal_generated;
 const COMMAND_RATE: Duration = Duration::from_millis(500);
 
 pub fn spawn_gimbal_task(
-    cam: Arc<A8Mini>,
+    cam: Arc<Box<dyn serialport::SerialPort>>,
     gimbal_rx: tokio::sync::watch::Receiver<(f32, f32, f32)>,
     session: &Session,
 ) -> tokio::task::JoinHandle<()> {
