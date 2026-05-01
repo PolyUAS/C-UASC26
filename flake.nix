@@ -15,6 +15,7 @@
     guidance.url = ./guidance;
     navigation.url = ./navigation;
 
+
   };
 
   outputs = inputs @ { flake-parts, ... }:
@@ -42,12 +43,23 @@
         # Generate shared Zenoh config (customize as needed; could derive from template)
         sharedConfig = pkgs.writeText "zenoh-config.json" ''
           {
-            "mode": "peer",
-            "listen": { "endpoints": ["tcp/127.0.0.1:0"] },
-            "scouting": {
-              "multicast": {
-                "enabled": true
+            mode: "client",
+            connect: {
+              endpoints: ["tcp/127.0.0.1:7447"]
+            },
+            scouting: {
+              multicast: {
+                enabled: false
               }
+            }
+          }
+        '';
+
+        routerCfg = pkgs.writeText "zenoh-router-cfg.json" ''
+          {
+            mode: "router",
+            listen: {
+              endpoints: ["tcp/127.0.0.1:7447"]
             }
           }
         '';
@@ -68,7 +80,9 @@
           guidance   = inputs.guidance.packages.${system}.default;
           navigation = inputs.navigation.packages.${system}.default;
 
-          mujoco-sim = inputs.mujoco-sim.packages.${system}.default;
+
+
+
 
           # Launcher: Spins up all with shared config
 
@@ -98,7 +112,41 @@
 
 
 
-          default = self'.packages.reset_jetson_network;
+          default = self'.packages.writeShellApplication {
+            name = "run_CUASC26";
+            runtimeInputs = with self'.packages; [
+              zenohd
+
+              control
+              guidance
+              # navigation
+              # vision
+              #
+              jetson_set_dev_power
+            ];
+
+            text = ''
+                # jetson_set_dev_power
+                export ZENOH_CONFIG=${sharedConfig}
+                echo "Launching with shared config: $ZENOH_CONFIG"
+
+                zenohd -c ${routerCfg} 1>/dev/null &
+                ZENOH_PID=$!
+
+                sleep 1
+
+                control &
+                CONTROL_PID=$!
+
+                guidance &
+                GUIDANCE_PID=$!
+
+                trap 'kill $ZENOH_PID $GUIDANCE_PID $CONTROL_PID 2>/dev/null' EXIT INT TERM
+
+                wait $CONTROL_PID $GUIDANCE_PID
+
+            '';
+          };
 
           jetson_set_dev_power = pkgs.writeShellApplication {
             name = "jetson_set_dev_power";
@@ -109,21 +157,7 @@
             '';
           };
 
-          jetson_reset_network = pkgs.writeShellApplication {
-            name = "jetson_reset_network";
-            runtimeInputs = [
 
-            ];
-            text = ''
-                sudo ip addr flush dev enP8p1s0
-                sudo ip addr add 192.168.144.30/24 dev enP8p1s0
-                sudo ip link set enP8p1s0 up
-
-                sudo ufw allow ssh
-                sudo ufw allow 60000:61000/udp
-                sudo ufw enable
-            '';
-          };
 
 
         };
@@ -136,6 +170,8 @@
             self'.packages.jetson_reset_network
             self'.packages.control
 
+            self'.packages.zenohd
+
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
@@ -147,6 +183,7 @@
           env.ZENOH_CONFIG = sharedConfig;
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
 
+          env.ZENOHD_CONFIG = routerCfg;
 
           env.DRONE_NAME = "HORUS";
           # env.DRONE_NAME = "OSIRUS";
