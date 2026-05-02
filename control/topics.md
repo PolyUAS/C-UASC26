@@ -24,5 +24,7 @@
 - [x] control/in/squidarm => squidarm.fbs
 - [ ] control/in/payload => squidarm.fbs (BUT IGNORES y) 
 
+# QUERYABLES
+- [ ] control/query/mission
 
 TODO GIMBAL HEALTH???

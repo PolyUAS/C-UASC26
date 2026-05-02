@@ -112,7 +112,7 @@
 
 
 
-          default = self'.packages.writeShellApplication {
+          default = pkgs.writeShellApplication {
             name = "run_CUASC26";
             runtimeInputs = with self'.packages; [
               zenohd
@@ -167,7 +167,7 @@
 
             self'.packages.vision
 
-            self'.packages.jetson_reset_network
+
             self'.packages.control
 
             self'.packages.zenohd
