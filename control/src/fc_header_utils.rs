@@ -17,10 +17,10 @@ pub fn get_headers() -> (Option<u8>, Option<u8>) {
 pub fn set_headers_safely(sys_id: u8, comp_id: u8) {
     unsafe {
         if FC_SYS_ID == None {
-            FC_SYS_ID = Some(sys_id);
+            FC_SYS_ID = Some(1);
         }
         if FC_SYS_COMP == None {
-            FC_SYS_COMP = Some(comp_id);
+            FC_SYS_COMP = Some(0);
         }
     }
 }

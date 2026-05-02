@@ -25,22 +25,6 @@ class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
 class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     drone_name = os.environ.get("DRONE_NAME")
 
-    INIT = State(initial=True)
-    LAUNCH = State()
-
-    ############################################
-    # Things go here in non-abstract classes
-    ############################################
-
-    COMPLETE = State(final=True)
-    LAND = State()
-    RETURN_TO_HOME = State()
-
-    on_reinit: TransitionList = INIT.to(INIT)
-    on_go: TransitionList = INIT.to(LAUNCH)
-    on_return: TransitionList = RETURN_TO_HOME.to(LAND)
-    on_finish: TransitionList = LAND.to(COMPLETE)
-
     geofence: list[Coords] = []
 
     goto_lock = asyncio.Lock()
@@ -61,15 +45,13 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
         self.position_sub = session.declare_subscriber("control/telem/gl_pos_int")
 
-        payload_input_sub_str = ""
+        payload_input_sub_str = "control/in/squidarm"
         if os.environ.get("DRONE_NAME") == "HORUS":
             payload_input_sub_str = "control/in/squidarm"
         elif os.environ.get("DRONE_NAME") == "OSIRUS":
             payload_input_sub_str = "control/in/payload"
 
         self.payload_sub = session.declare_publisher(payload_input_sub_str)
-
-        self.on_reinit.on(self._reset_home)
 
     def _reset_home(self):
 
@@ -92,9 +74,9 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         self,
         waypoint: WaypointStruct,
         a_rad: float,  # a_rad is in meters
-        frame: int = FrameTypeFB.FrameType.GLOBAL,
+        frame: int = FrameTypeFB.FrameType.GLOBAL_RELATIVE_ALT,
         hdg: float = math.nan,
-        hold_time: float = 1.0,
+        speed: float = -1.0,  # m/s, -1 for dflt
         timeout: float | None = 60.0,
     ) -> bool:
         """
@@ -111,38 +93,42 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         WaypointFB.Start(builder)
         WaypointFB.AddLat(builder, waypoint.lat)
         WaypointFB.AddLon(builder, waypoint.lon)
-        WaypointFB.AddAlt(builder, waypoint.alt)
+        WaypointFB.AddAlt(builder, waypoint.alt / 1000.0)
         WaypointFB.AddHeading(builder, hdg)
         WaypointFB.AddAcceptanceRadius(builder, a_rad)
-        WaypointFB.AddHoldTime(builder, hold_time)
+        WaypointFB.AddSpeed(builder, speed)
         WaypointFB.AddFrame(builder, frame)
-        waypoint = WaypointFB.End(builder)
 
-        builder.Finish(waypoint)
+        packet = WaypointFB.End(builder)
+
+        builder.Finish(packet)
         payload = bytes(builder.Output())
+
+        # print(f"lat: {waypoint.lat} lon: {waypoint.lon} alt: {waypoint.alt}")
 
         async with self.goto_lock:
             self.target_pos_pub.put(payload)
-
             t = waypoint
-
             d = math.inf
-
-            async with asyncio.timeout(timeout):  # whole-motion timeout
-                while a_rad <= d:  # while we have not breached the radius
-                    async with asyncio.timeout(0.300):  # 300 ms packet recv timeout
-                        s = self.position_sub.try_recv()
-
-                    if s is not None:
-                        payload = s.payload
-                        pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
-
-                        p = WaypointStruct(pos.Lat(), pos.Lon(), pos.Alt())
-
-                        d = p.distance_to(t)
-
-                    await asyncio.sleep(0.300)  # 300 ms async delay
-            return a_rad <= d  # returns success value
+            try:
+                async with asyncio.timeout(timeout):
+                    while d > a_rad:
+                        try:
+                            async with asyncio.timeout(0.300):
+                                s = self.position_sub.recv()
+                            if s is not None:
+                                payload = s.payload.to_bytes()
+                                pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(
+                                    payload
+                                )
+                                p = WaypointStruct(pos.Lat(), pos.Lon(), pos.Alt())
+                                d = p.distance_to(t)
+                        except TimeoutError:
+                            pass  # no packet this tick, keep waiting
+                        await asyncio.sleep(0.1)
+            except TimeoutError:
+                return False  # overall timeout → mission failure
+            return d <= a_rad
         # return from goto
 
     def set_payload(self, x: float, y: float):
@@ -165,12 +151,4 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         """
         Main mission logic. Subclasses must implement this.
         Should drive the FSM from LAUNCH through to COMPLETE.
-        """
-        ...
-
-    @abstractmethod
-    def on_enter_LAUNCH(self) -> None:
-        """
-        Called automatically by statemachine when entering LAUNCH state.
-        Subclasses must define what happens at launch.
         """

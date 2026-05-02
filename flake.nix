@@ -171,17 +171,19 @@
             self'.packages.control
 
             self'.packages.zenohd
+            self'.packages.generate_schemas
+            self'.packages.default
 
             pkgs.just
             pkgs.uv
             pkgs.flatbuffers
-            self'.packages.zenohd
+
             pkgs.btop
-            self'.packages.generate_schemas
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
-          env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+          # env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+          env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
 
           env.ZENOHD_CONFIG = routerCfg;
 

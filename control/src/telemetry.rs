@@ -1,5 +1,5 @@
-use flatbuffers::bitflags::Flags;
 use flatbuffers::{self, FlatBufferBuilder};
+use mavlink::Message;
 
 use mavlink::MavHeader;
 

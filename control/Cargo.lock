@@ -333,8 +333,6 @@ dependencies = [
  "ctrlc",
  "flatbuffers",
  "mavlink",
- "serialport",
- "siyi-protocol",
  "tokio",
  "zenoh",
  "zenoh-ext",
@@ -2535,7 +2533,6 @@ dependencies = [
  "core-foundation",
  "core-foundation-sys",
  "io-kit-sys",
- "libudev",
  "mach2",
  "nix 0.26.4",
  "scopeguard",
@@ -2636,12 +2633,6 @@ name = "siphasher"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
-
-[[package]]
-name = "siyi-protocol"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "746c785cd80469a87135c1bfa1dd421860ea7058d9dd2ec78792ff0e9ec0d82f"
 
 [[package]]
 name = "slab"

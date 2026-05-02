@@ -34,7 +34,7 @@ develop:
     @nix develop
 
 sitl:
-    @uv run Tools/autotest/sim_vehicle.py -v copter --console --map -w
+    @uv run Tools/autotest/sim_vehicle.py -v ArduCopter  -w
 
 mavproxy:
-    @uv run mavproxy.py --master=udp:127.0.0.1:14550 --console --map
+    @uv run mavproxy.py --master=udp:127.0.0.1:14550 --console --map  --out=udp:127.0.0.1:14551

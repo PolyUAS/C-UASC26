@@ -44,13 +44,31 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
             _ => MavFrame::MAV_FRAME_GLOBAL_RELATIVE_ALT,
         };
 
+        // {
+        //     let lat = target.lat();
+        //     let lon = target.lon();
+        //     let alt = target.alt();
+        //     let hdg = target.heading();
+        //     let ar = target.acceptance_radius();
+        //     let spd = target.speed();
+
+        //     println!(
+        //         "
+        //     Target:
+        //     lat {lat} lon {lon} alt {alt}
+        //     hdg {hdg} spd {spd}
+        //     ar {ar}
+        //     "
+        //     );
+        // }
+
         let res = conn
             .send_default(&MavMessage::COMMAND_INT(
                 mavlink::ardupilotmega::COMMAND_INT_DATA {
-                    param1: target.speed(), // m/s
-                    param2: 1.0,            // immediately transition to guided mode
-                    param3: target.acceptance_radius(),
-                    param4: target.heading(), // radians
+                    param1: target.speed(),             // speed: -1 = use default
+                    param2: 0.0,                        // bitmask: no flags
+                    param3: target.acceptance_radius(), // radius: 0 = default
+                    param4: target.heading(),           // yaw: NaN = unchanged
                     x: target.lat(),
                     y: target.lon(),
                     z: target.alt(),
@@ -58,7 +76,7 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
                     target_system: sys,
                     target_component: comp,
                     frame: frame,
-                    current: 0,
+                    current: 3,
                     autocontinue: 0,
                 },
             ))
