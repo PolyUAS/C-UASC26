@@ -210,9 +210,8 @@ async fn init_mission_queryable(
                     let w = Waypoint::create(
                         &mut fbb,
                         &WaypointArgs {
-                            hold_time: i.data.param1,
+                            speed: -1.0, // invalid
                             heading: i.data.param2,
-                            pass_radius: i.data.param3,
                             acceptance_radius: i.data.param4,
                             frame,
                             lat: i.data.x,
