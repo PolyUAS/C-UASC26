@@ -67,12 +67,14 @@ class BAD_FSM(AbstractFSMBaseClass):
         await self.navigate_waypoint(target, 0.5)
 
     async def on_enter_RETURN_TO_HOME(self) -> None:
-        await self.navigate_waypoint(self.home, 0.5)
+        # await self.navigate_waypoint(self.home, 0.5)
+        pass
 
     async def on_enter_LAND(self) -> None:
-        ground = WaypointStruct(
-            self.home.lat,
-            self.home.lon,
-            0,
-        )
-        await self.navigate_waypoint(ground, 0.5)
+        # ground = WaypointStruct(
+        #     self.home.lat,
+        #     self.home.lon,
+        #     0,
+        # )
+        # await self.navigate_waypoint(ground, 0.5)
+        pass

@@ -123,17 +123,27 @@
               # vision
               #
               jetson_set_dev_power
+              jetson_reset_power
             ];
 
+            env.ZENOH_CONFIG = sharedConfig;
+            env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+            # env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
+
+            env.ZENOHD_CONFIG = routerCfg;
+
+            # env.DRONE_NAME = "HORUS";
+            env.DRONE_NAME = "OSIRUS";
+
             text = ''
-                # jetson_set_dev_power
+                jetson_set_dev_power
                 export ZENOH_CONFIG=${sharedConfig}
                 echo "Launching with shared config: $ZENOH_CONFIG"
 
                 zenohd -c ${routerCfg} 1>/dev/null &
                 ZENOH_PID=$!
 
-                sleep 1
+                sleep 3
 
                 control &
                 CONTROL_PID=$!
@@ -141,7 +151,7 @@
                 guidance &
                 GUIDANCE_PID=$!
 
-                trap 'kill $ZENOH_PID $GUIDANCE_PID $CONTROL_PID 2>/dev/null' EXIT INT TERM
+                trap 'kill $ZENOH_PID $GUIDANCE_PID $CONTROL_PID 2>/dev/null && jetson_reset_power' EXIT INT TERM
 
                 wait $CONTROL_PID $GUIDANCE_PID
 
@@ -157,6 +167,13 @@
             '';
           };
 
+          jetson_reset_power = pkgs.writeShellApplication {
+            name = "jetson_reset_power";
+            runtimeInputs = [];
+            text = ''
+              sudo nvpmodel -m 0
+            '';
+          };
 
 
 
@@ -182,13 +199,13 @@
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
-          # env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
-          env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
+          env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+          # env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
 
           env.ZENOHD_CONFIG = routerCfg;
 
-          env.DRONE_NAME = "HORUS";
-          # env.DRONE_NAME = "OSIRUS";
+          # env.DRONE_NAME = "HORUS";
+          env.DRONE_NAME = "OSIRUS";
 
           shellHook = ''
             export ZENOH_CONFIG=${sharedConfig}
