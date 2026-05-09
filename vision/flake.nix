@@ -82,14 +82,7 @@
               UV_NO_SYNC = "1";
               UV_PYTHON = pythonSet.python.interpreter;
               UV_PYTHON_DOWNLOADS = "never";
-              LD_LIBRARY_PATH = lib.makeLibraryPath [
-                pkgs.opencv4
-                pkgs.gstreamer
-                pkgs.gst-plugins-base
-                pkgs.libGL
-                pkgs.libGLU
 
-              ];
             };
             shellHook = ''
               unset PYTHONPATH

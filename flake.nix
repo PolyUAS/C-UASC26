@@ -131,6 +131,8 @@
             pkgs.btop
 
           ];
+          env.PYTHONPATH = "/usr/lib/python3/dist-packages:$PYTHONPATH";
+
           env.ZENOH_CONFIG = sharedConfig;
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
           shellHook = ''

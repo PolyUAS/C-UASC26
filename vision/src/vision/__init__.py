@@ -1,9 +1,15 @@
 import os
 import queue
+import sys
 import threading
 import time
 
 import cv2
+
+print(hasattr(cv2, "cuda"))
+print(cv2.cuda.getCudaEnabledDeviceCount() if hasattr(cv2, "cuda") else "no cv2.cuda")
+
+sys.exit(1)
 
 rtsp_url = "rtsp://192.168.144.25:8554/main.264"
 RENDER_WINDOW = False
