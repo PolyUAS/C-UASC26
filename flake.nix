@@ -128,10 +128,10 @@
 
             text = ''
                 export MAVLINK_CONN="serial:/dev/ttyTHS1:256000"
-                # export MAVLINK_CONN = "udpin:0.0.0.0:14550";
+                # export MAVLINK_CONN="udpin:0.0.0.0:14551";
 
 
-                # export DRONE_NAME = "HORUS"
+                # export DRONE_NAME="HORUS"
                 export DRONE_NAME="OSIRUS"
 
 
@@ -198,13 +198,11 @@
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
-<<<<<<< Updated upstream
+
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
           # env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
-=======
-          # env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
-          env.MAVLINK_CONN = "udpin:127.0.0.1:14551";
->>>>>>> Stashed changes
+
+
 
           env.ZENOHD_CONFIG = routerCfg;
 
