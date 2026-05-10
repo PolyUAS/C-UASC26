@@ -126,16 +126,15 @@
               jetson_reset_power
             ];
 
-            env.ZENOH_CONFIG = sharedConfig;
-            env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
-            # env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
-
-            env.ZENOHD_CONFIG = routerCfg;
-
-            # env.DRONE_NAME = "HORUS";
-            env.DRONE_NAME = "OSIRUS";
-
             text = ''
+                export MAVLINK_CONN="serial:/dev/ttyTHS1:256000"
+                # export MAVLINK_CONN = "udpin:0.0.0.0:14550";
+
+
+                # export DRONE_NAME = "HORUS"
+                export DRONE_NAME="OSIRUS"
+
+
                 jetson_set_dev_power
                 export ZENOH_CONFIG=${sharedConfig}
                 echo "Launching with shared config: $ZENOH_CONFIG"
