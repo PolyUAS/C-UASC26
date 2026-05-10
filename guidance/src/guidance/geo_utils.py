@@ -48,9 +48,10 @@ def metric_dist(w1: WaypointStruct, w2: WaypointStruct) -> float:
     lat2, lon2, alt2 = w2.to_deg()
 
     dalt_m = (alt2 - alt1) / 1000.0  # mm to m
-
     geod = pyproj.Geod(ellps="WGS84")
 
     az12, az21, distance_m = geod.inv(lon1, lat1, lon2, lat2)
 
-    return math.sqrt(distance_m**2 + dalt_m**2)
+    # print(f"flat dist: {distance_m}")
+
+    return round(math.sqrt(distance_m**2 + dalt_m**2), 3)

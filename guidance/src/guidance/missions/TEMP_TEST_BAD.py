@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from statemachine import State
 from statemachine.transition_list import TransitionList
@@ -7,6 +8,8 @@ from zenoh import Session
 from guidance.generated.waypoint.Waypoint import Waypoint
 from guidance.geo_utils import WaypointStruct
 from guidance.missionFSM import AbstractFSMBaseClass
+
+TEST_SPEED = 1.0  # ms/s
 
 
 class BAD_FSM(AbstractFSMBaseClass):
@@ -32,41 +35,47 @@ class BAD_FSM(AbstractFSMBaseClass):
         super().__init__(session, home)
 
     async def run(self) -> None:
-        prev = None
+        # prev = None
         await self.activate_initial_state()
-        print(f"Prev = {prev}, Current = {self.current_state.id}, Next = LAUNCH")
+        # print(f"Prev = {prev}, Current = {self.current_state.id}... Next = LAUNCH")  # type: ignore
 
         await self.on_go()  # INIT → LAUNCH
-        print(f"Prev = INIT, Current = {self.current_state.id}, Next = HOPPING")
+        # print(f"Prev = INIT, Current = {self.current_state.id}... Next = HOPPING")  # type: ignore
 
         await self.begin_hop()  # LAUNCH → HOPPING
-        print(
-            f"Prev = LAUNCH, Current = {self.current_state.id}, Next = RETURN_TO_HOME"
-        )
+        # print(
+        #     f"Prev = LAUNCH, Current = {self.current_state.id}... Next = RETURN_TO_HOME"  # type: ignore
+        # )
 
         await self.end_hop()  # HOPPING → RETURN_TO_HOME
-        print(f"Prev = HOPPING, Current = {self.current_state.id}, Next = LAND")
+        # print(f"Prev = HOPPING, Current = {self.current_state.id}... Next = LAND")  # type: ignore
 
         await self.on_return()  # RETURN_TO_HOME → LAND
-        print(
-            f"Prev = RETURN_TO_HOME, Current = {self.current_state.id}, Next = COMPLETE"
-        )
+        # print(
+        #     f"Prev = RETURN_TO_HOME, Current = {self.current_state.id}... Next = COMPLETE"  # type: ignore
+        # )
 
         await self.on_finish()  # LAND → COMPLETE
-        print(f"Prev = LAND, Current = {self.current_state.id}, Next = None")
+        # print(f"Prev = LAND, Current = {self.current_state.id}... Next = None")  # type: ignore
 
     async def on_enter_LAUNCH(self) -> None:
-        pass
+        print("waiting to be at takeoff alt")
+        while self.pos.alt < 8_000.0:
+            print(f"alt: {self.pos.alt}")
+            await asyncio.sleep(0.300)
 
     async def on_enter_HOPPING(self) -> None:
+        print("hopping")
         target = WaypointStruct(
             self.home.lat,
             self.home.lon,
-            self.home.alt + 8_000,
+            self.pos.alt + 2_000,
         )
-        await self.navigate_waypoint(target, 0.5)
+
+        await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
 
     async def on_enter_RETURN_TO_HOME(self) -> None:
+
         # await self.navigate_waypoint(self.home, 0.5)
         pass
 
@@ -77,4 +86,14 @@ class BAD_FSM(AbstractFSMBaseClass):
         #     0,
         # )
         # await self.navigate_waypoint(ground, 0.5)
-        pass
+        print("RTH")
+        # await self.navigate_waypoint(self.home, 0.4, speed=TEST_SPEED)
+
+    async def on_enter_LAND(self) -> None:
+        print("LAND")
+        # ground = WaypointStruct(
+        #     self.home.lat,
+        #     self.home.lon,
+        #     self.home.alt + 500.0,  # half a meter agl
+        # )
+        # await self.navigate_waypoint(ground, 0.4, speed=TEST_SPEED)

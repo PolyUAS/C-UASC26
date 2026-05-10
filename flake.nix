@@ -199,8 +199,13 @@
 
           ];
           env.ZENOH_CONFIG = sharedConfig;
+<<<<<<< Updated upstream
           env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
           # env.MAVLINK_CONN = "udpin:0.0.0.0:14550";
+=======
+          # env.MAVLINK_CONN = "serial:/dev/ttyTHS1:256000";
+          env.MAVLINK_CONN = "udpin:127.0.0.1:14551";
+>>>>>>> Stashed changes
 
           env.ZENOHD_CONFIG = routerCfg;
 

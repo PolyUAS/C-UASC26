@@ -7,7 +7,7 @@ from os import environ
 import flatbuffers
 from statemachine import State, StateMachine
 from statemachine.transition_list import TransitionList
-from zenoh import Session
+from zenoh import Sample, Session
 
 import guidance.generated.Control_Squid.Squidarm as SquidarmFB
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
@@ -31,6 +31,8 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
     home: WaypointStruct
 
+    pos: WaypointStruct
+
     def __init__(self, session: Session, home: WaypointStruct):
         """
         Initializer for the FSM base class.
@@ -43,7 +45,9 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
         self.target_pos_pub = session.declare_publisher("control/in/target_pos")
 
-        self.position_sub = session.declare_subscriber("control/telem/gl_pos_int")
+        self.position_sub = session.declare_subscriber(
+            "control/telem/gl_pos_int", self._set_pos
+        )
 
         payload_input_sub_str = "control/in/squidarm"
         if os.environ.get("DRONE_NAME") == "HORUS":
@@ -53,13 +57,14 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
         self.payload_sub = session.declare_publisher(payload_input_sub_str)
 
-    def _reset_home(self):
+    def _reset_home(self, wp: WaypointStruct):
+        self.home = wp
 
-        buf = self.position_sub.recv()
-
-        w = WaypointFB.Waypoint.GetRootAs(buf)
-
-        self.home = WaypointStruct(w.Lat(), w.Lon(), w.Alt())
+    def _set_pos(self, s: Sample):
+        if s is not None:
+            payload = s.payload.to_bytes()
+            pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
+            self.pos = WaypointStruct(pos.Lat(), pos.Lon(), pos.AltAboveHome())
 
     def set_geofence(self, packet: GeofencePacket):
         coords_len = packet.PointsLength()
@@ -108,24 +113,17 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
         async with self.goto_lock:
             self.target_pos_pub.put(payload)
+
             t = waypoint
             d = math.inf
             try:
                 async with asyncio.timeout(timeout):
                     while d > a_rad:
-                        try:
-                            async with asyncio.timeout(0.300):
-                                s = self.position_sub.recv()
-                            if s is not None:
-                                payload = s.payload.to_bytes()
-                                pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(
-                                    payload
-                                )
-                                p = WaypointStruct(pos.Lat(), pos.Lon(), pos.Alt())
-                                d = p.distance_to(t)
-                        except TimeoutError:
-                            pass  # no packet this tick, keep waiting
-                        await asyncio.sleep(0.1)
+                        # print(f"dist: {d}, a: {a_rad}")
+
+                        d = self.pos.distance_to(t)
+
+                        await asyncio.sleep(0.01)
             except TimeoutError:
                 return False  # overall timeout → mission failure
             return d <= a_rad
