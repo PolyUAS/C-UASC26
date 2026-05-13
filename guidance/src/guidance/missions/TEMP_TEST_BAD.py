@@ -60,7 +60,7 @@ class BAD_FSM(AbstractFSMBaseClass):
 
     async def on_enter_LAUNCH(self) -> None:
         print("waiting to be at takeoff alt")
-        while self.pos.alt < 8_000.0:
+        while self.pos.alt < 12_000.0:
             print(f"alt: {self.pos.alt}")
             await asyncio.sleep(0.300)
 
@@ -69,7 +69,7 @@ class BAD_FSM(AbstractFSMBaseClass):
         target = WaypointStruct(
             self.home.lat,
             self.home.lon,
-            self.pos.alt + 2_000,
+            self.pos.alt + 5_000,
         )
 
         await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
@@ -78,16 +78,6 @@ class BAD_FSM(AbstractFSMBaseClass):
 
         # await self.navigate_waypoint(self.home, 0.5)
         pass
-
-    async def on_enter_LAND(self) -> None:
-        # ground = WaypointStruct(
-        #     self.home.lat,
-        #     self.home.lon,
-        #     0,
-        # )
-        # await self.navigate_waypoint(ground, 0.5)
-        print("RTH")
-        # await self.navigate_waypoint(self.home, 0.4, speed=TEST_SPEED)
 
     async def on_enter_LAND(self) -> None:
         print("LAND")

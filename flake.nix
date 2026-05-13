@@ -205,6 +205,7 @@
 
 
           env.ZENOHD_CONFIG = routerCfg;
+          env.GIMBAL_OFFSET_MM = "152,0,0";
 
           # env.DRONE_NAME = "HORUS";
           env.DRONE_NAME = "OSIRUS";
