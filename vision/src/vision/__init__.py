@@ -5,89 +5,95 @@ import time
 
 import cv2
 
-rtsp_url = "rtsp://192.168.144.25:8554/main.264"
-RENDER_WINDOW = False
 
-# Recommended FFMPEG options for low-latency RTSP
-os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
-    "rtsp_transport;udp|"  # try 'tcp' if udp has packet loss
-    "fflags;nobuffer|"
-    "flags;low_delay|"
-    "probesize;32|"
-    "analyzeduration;0|"
-    "stimeout;2000000"  # 2 seconds
-)
+rtsp_url = "rtsp://192.168.144.25:8554/main.264"
+RENDER_WINDOW = os.environ.get("VISION_RENDER", "1") == "1"
+
+frame_queue = queue.Queue(maxsize=5)
 
 
 def create_capture():
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
+        "rtsp_transport;udp|"
+        "fflags;nobuffer|"
+        "flags;low_delay|"
+        "probesize;32|"
+        "analyzeduration;0|"
+        "stimeout;2000000"
+    )
+
     cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+
     if not cap.isOpened():
-        print("→ Failed to open RTSP stream")
+        print("Failed to open stream")
         return None
-    # Throw away initial frames until we get a clean keyframe
+
+    # Drop initial buffered/corrupt frames.
     for _ in range(40):
         cap.read()
+
     return cap
-
-
-frame_queue = queue.Queue(maxsize=5)  # small queue → drops old frames
 
 
 def capture_thread():
     while True:
         cap = create_capture()
+
         if cap is None:
             time.sleep(3)
             continue
 
-        print("→ Connected to stream")
+        print("Connected to stream")
+
         try:
             while True:
                 ret, frame = cap.read()
-                if not ret:
-                    print("→ Read failed → reconnecting...")
+
+                if not ret or frame is None:
+                    print("Read failed, reconnecting...")
                     break
 
-                try:
-                    if frame_queue.full():
-                        frame_queue.get_nowait()  # drop oldest
-                    frame_queue.put_nowait(frame)
-                except queue.Full:
-                    pass  # should not happen with get_nowait + put_nowait combo
+                if frame_queue.full():
+                    frame_queue.get_nowait()
 
-        except Exception as e:
-            print(f"Capture error: {e}")
+                frame_queue.put_nowait(frame)
+
+        except Exception as exc:
+            print(f"Capture error: {exc}")
+
         finally:
             cap.release()
             time.sleep(1.5)
 
 
-# Start background capture
-threading.Thread(target=capture_thread, daemon=True).start()
+def main():
+    threading.Thread(target=capture_thread, daemon=True).start()
 
-# ────────────────────────────────────────────────
-# Main display loop
-# ────────────────────────────────────────────────
+    try:
+        while True:
+            try:
+                frame = frame_queue.get(timeout=0.15)
 
-try:
-    while True:
-        try:
-            frame = frame_queue.get(timeout=0.15)
-            if RENDER_WINDOW:
-                cv2.imshow("A8 Mini Stream", frame)
+                if RENDER_WINDOW:
+                    cv2.imshow("A8 Mini Stream", frame)
 
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord("q"):
-                    break
-                if key == ord("r"):  # press 'r' to force reconnect
-                    print("→ Manual reconnect requested")
-                    # (the thread will handle it automatically anyway)
+                    key = cv2.waitKey(1) & 0xFF
 
-        except queue.Empty:
-            # No new frame → just keep the last one or show nothing
-            continue
+                    if key == ord("q"):
+                        break
 
-finally:
-    if RENDER_WINDOW:
-        cv2.destroyAllWindows()
-    print("Exited cleanly")
+                    if key == ord("r"):
+                        print("Manual reconnect requested")
+
+            except queue.Empty:
+                continue
+
+    finally:
+        if RENDER_WINDOW:
+            cv2.destroyAllWindows()
+
+        print("Exited cleanly")
+
+
+if __name__ == "__main__":
+    main()
