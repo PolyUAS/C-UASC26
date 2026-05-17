@@ -10,6 +10,6 @@ pub mod gimbal_generated;
 pub mod heartbeat_generated;
 #[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
 pub mod position_generated;
+pub mod squidarm_generated;
 #[allow(dead_code, mismatched_lifetime_syntaxes, unused)]
 pub mod waypoint_generated;
-pub mod squidarm_generated;

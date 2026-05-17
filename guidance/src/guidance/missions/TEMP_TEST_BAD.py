@@ -1,5 +1,6 @@
 import asyncio
 import time
+from operator import ge
 
 from statemachine import State
 from statemachine.transition_list import TransitionList
@@ -58,9 +59,15 @@ class BAD_FSM(AbstractFSMBaseClass):
         await self.on_finish()  # LAND → COMPLETE
         # print(f"Prev = LAND, Current = {self.current_state.id}... Next = None")  # type: ignore
 
+    async def on_enter_INIT(self):
+        while len(self.geofence) == 0:
+            self.update_geofence()
+
     async def on_enter_LAUNCH(self) -> None:
         print("waiting to be at takeoff alt")
+
         while self.pos.alt < 12_000.0:
+            # self.update_geofence()
             print(f"alt: {self.pos.alt}")
             await asyncio.sleep(0.300)
 

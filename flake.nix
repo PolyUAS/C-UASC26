@@ -100,11 +100,11 @@
 
                     # check if either pattern exists
                     if [ -d "$d/src/generated" ]; then
-                        flatc --rust   -o "$d/src/generated/"     schemas/* 2>/dev/null
+                        flatc --rust   -o "$d/src/generated/"     schemas/* # 2>/dev/null
                     fi
 
                     if [ -d "$d/src/$d/generated" ] && [ ! -d "$d/src/generated" ]; then
-                        flatc --python -o "$d/src/$d/generated/" schemas/* 2>/dev/null
+                        flatc --python -o "$d/src/$d/generated/" schemas/* #  2>/dev/null
                     fi
                 done
             '';
@@ -136,6 +136,51 @@
 
 
                 jetson_set_dev_power
+                export ZENOH_CONFIG=${sharedConfig}
+                echo "Launching with shared config: $ZENOH_CONFIG"
+
+                zenohd -c ${routerCfg} 1>/dev/null &
+                ZENOH_PID=$!
+
+                sleep 3
+
+                control &
+                CONTROL_PID=$!
+
+                guidance &
+                GUIDANCE_PID=$!
+
+                trap 'kill $ZENOH_PID $GUIDANCE_PID $CONTROL_PID 2>/dev/null && jetson_reset_power' EXIT INT TERM
+
+                wait $CONTROL_PID $GUIDANCE_PID
+
+            '';
+          };
+
+          sitl = pkgs.writeShellApplication {
+            name = "sitl_CUASC26";
+            runtimeInputs = with self'.packages; [
+              zenohd
+
+              control
+              guidance
+              # navigation
+              # vision
+              #
+              # jetson_set_dev_power
+              # jetson_reset_power
+            ];
+
+            text = ''
+                # export MAVLINK_CONN="serial:/dev/ttyTHS1:256000"
+                export MAVLINK_CONN="udpin:0.0.0.0:14551";
+
+
+                # export DRONE_NAME="HORUS"
+                export DRONE_NAME="OSIRUS"
+
+
+                # jetson_set_dev_power
                 export ZENOH_CONFIG=${sharedConfig}
                 echo "Launching with shared config: $ZENOH_CONFIG"
 

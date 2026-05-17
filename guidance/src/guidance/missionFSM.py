@@ -1,6 +1,7 @@
 import asyncio
 import math
 import os
+import sys
 from abc import ABC, ABCMeta, abstractmethod
 from os import environ
 
@@ -10,12 +11,17 @@ from statemachine.transition_list import TransitionList
 from zenoh import Sample, Session
 
 import guidance.generated.Control_Squid.Squidarm as SquidarmFB
+import guidance.generated.Geofence.GeofencePacket
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
 import guidance.generated.waypoint.FrameType as FrameTypeFB
 import guidance.generated.waypoint.Waypoint as WaypointFB
 from guidance.generated.Geofence.Coords import Coords
 from guidance.generated.Geofence.GeofencePacket import GeofencePacket
 from guidance.geo_utils import WaypointStruct
+
+geofence_parent = os.path.dirname(guidance.generated.Geofence.GeofencePacket.__file__)
+if geofence_parent not in sys.path:
+    sys.path.insert(0, os.path.dirname(geofence_parent))
 
 
 class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
@@ -57,6 +63,8 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
 
         self.payload_sub = session.declare_publisher(payload_input_sub_str)
 
+        self.geofence_queryier = session.declare_querier("control/query/geofence")
+
     def _reset_home(self, wp: WaypointStruct):
         self.home = wp
 
@@ -65,6 +73,16 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
             payload = s.payload.to_bytes()
             pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
             self.pos = WaypointStruct(pos.Lat(), pos.Lon(), pos.AltAboveHome())
+
+    def update_geofence(self):
+        pack = self.geofence_queryier.get().recv()
+
+        pack = pack.ok
+        if pack is not None:
+            geo = guidance.generated.Geofence.GeofencePacket.GeofencePacket.GetRootAs(
+                pack.payload.to_bytes()
+            )
+            self.set_geofence(geo)
 
     def set_geofence(self, packet: GeofencePacket):
         coords_len = packet.PointsLength()
