@@ -8,6 +8,7 @@ from zenoh import Session
 
 from guidance.generated.waypoint.Waypoint import Waypoint
 from guidance.geo_utils import WaypointStruct
+from guidance.lawnmower import generate_lawnmower_sweep
 from guidance.missionFSM import AbstractFSMBaseClass
 
 TEST_SPEED = 1.0  # ms/s
@@ -72,14 +73,33 @@ class BAD_FSM(AbstractFSMBaseClass):
             await asyncio.sleep(0.300)
 
     async def on_enter_HOPPING(self) -> None:
-        print("hopping")
-        target = WaypointStruct(
-            self.home.lat,
-            self.home.lon,
-            self.pos.alt + 5_000,
+        print("starting lawnmower sweep")
+
+        sweep_points = generate_lawnmower_sweep(
+            geofence=self.geofence,
+            alt_mm=self.pos.alt,
+            spacing_m=8.0,
+            margin_m=8.0,
+            sample_step_m=1.0,
         )
 
-        await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
+        print(f"generated {len(sweep_points)} sweep waypoints")
+
+        for i, waypoint in enumerate(sweep_points):
+            print(f"going to sweep waypoint {i + 1}/{len(sweep_points)}")
+
+            success = await self.navigate_waypoint(
+                waypoint,
+                a_rad=1.0,
+                speed=5.0,
+                timeout=60.0,
+            )
+
+            if not success:
+                print("failed to reach sweep waypoint")
+                break
+
+            await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
 
     async def on_enter_RETURN_TO_HOME(self) -> None:
 
