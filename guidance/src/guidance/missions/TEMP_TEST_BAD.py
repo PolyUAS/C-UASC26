@@ -30,6 +30,8 @@ class BAD_FSM(AbstractFSMBaseClass):
     begin_hop: TransitionList = LAUNCH.to(HOPPING)
     end_hop: TransitionList = HOPPING.to(RETURN_TO_HOME)
 
+    pos: WaypointStruct
+
     def __init__(self, session: Session, home: WaypointStruct):
 
         super().__init__(session, home)
