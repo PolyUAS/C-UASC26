@@ -260,6 +260,20 @@
               echo "just is aliased to j"
             '';
           };
+
+
+          test_adhoc = pkgs.writeShellApplication {
+            name = "test_adhoc";
+            runtimeInputs = [];
+            text = ''
+                sudo nmcli device wifi hotspot \
+                    ifname wlP1p1s0 \
+                    ssid JetsonAP \
+                    password jetson123
+            '';
+          };
+
+
         };
       flake = {
         # The usual flake attributes can be defined here, including

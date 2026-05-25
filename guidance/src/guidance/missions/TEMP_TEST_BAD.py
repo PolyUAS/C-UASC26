@@ -33,8 +33,8 @@ class BAD_FSM(AbstractFSMBaseClass):
     pos: WaypointStruct
 
     def __init__(self, session: Session, home: WaypointStruct):
-
         super().__init__(session, home)
+        self.pos = home
 
     async def run(self) -> None:
         # prev = None
