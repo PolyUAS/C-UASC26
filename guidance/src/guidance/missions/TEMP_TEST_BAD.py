@@ -46,7 +46,7 @@ class BAD_FSM(AbstractFSMBaseClass):
 
         await self.begin_hop()  # LAUNCH → HOPPING
         # print(
-        #     f"Prev = LAUNCH, Current = {self.current_state.id}... Next = RETURN_TO_HOME"  # type: ignore
+        # f"Prev = LAUNCH, Current = {self.current_state.id}... Next = RETURN_TO_HOME"  # type: ignore
         # )
 
         await self.end_hop()  # HOPPING → RETURN_TO_HOME
@@ -54,7 +54,7 @@ class BAD_FSM(AbstractFSMBaseClass):
 
         await self.on_return()  # RETURN_TO_HOME → LAND
         # print(
-        #     f"Prev = RETURN_TO_HOME, Current = {self.current_state.id}... Next = COMPLETE"  # type: ignore
+        # f"Prev = RETURN_TO_HOME, Current = {self.current_state.id}... Next = COMPLETE"  # type: ignore
         # )
 
         await self.on_finish()  # LAND → COMPLETE
@@ -63,7 +63,7 @@ class BAD_FSM(AbstractFSMBaseClass):
     async def on_enter_LAUNCH(self) -> None:
         print("waiting to be at takeoff alt")
         while self.pos.alt < 12_000.0:
-            print(f"alt: {self.pos.alt}")
+            print(f"alt (mm): {self.pos.alt}")
             await asyncio.sleep(0.300)
 
     async def on_enter_HOPPING(self) -> None:
@@ -73,8 +73,9 @@ class BAD_FSM(AbstractFSMBaseClass):
             self.home.lon,
             self.pos.alt + 5_000,
         )
-
-        await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
+        there = False
+        while not there:
+            there = await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
 
     async def on_enter_RETURN_TO_HOME(self) -> None:
 

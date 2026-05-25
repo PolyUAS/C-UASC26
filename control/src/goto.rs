@@ -62,6 +62,7 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
         //     );
         // }
 
+        println!("RECV MSG");
         let res = conn
             .send_default(&MavMessage::COMMAND_INT(
                 mavlink::ardupilotmega::COMMAND_INT_DATA {
@@ -73,8 +74,8 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
                     y: target.lon(),
                     z: target.alt(),
                     command: MavCmd::MAV_CMD_DO_REPOSITION,
-                    target_system: sys,
-                    target_component: comp,
+                    target_system: 1,
+                    target_component: 1,
                     frame: frame,
                     current: 3,
                     autocontinue: 0,
