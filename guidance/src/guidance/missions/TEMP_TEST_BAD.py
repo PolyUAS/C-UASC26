@@ -9,7 +9,7 @@ from guidance.generated.waypoint.Waypoint import Waypoint
 from guidance.geo_utils import WaypointStruct
 from guidance.missionFSM import AbstractFSMBaseClass
 
-TEST_SPEED = 1.0  # ms/s
+TEST_SPEED = 0.50  # m/s
 
 
 class BAD_FSM(AbstractFSMBaseClass):
@@ -75,6 +75,7 @@ class BAD_FSM(AbstractFSMBaseClass):
         )
         there = False
         while not there:
+            print(f"pos: {self.pos.alt}, {self.pos.lat}, {self.pos.lon}")
             there = await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
 
     async def on_enter_RETURN_TO_HOME(self) -> None:

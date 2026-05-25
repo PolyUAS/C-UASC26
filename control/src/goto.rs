@@ -75,9 +75,9 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
                     z: target.alt(),
                     command: MavCmd::MAV_CMD_DO_REPOSITION,
                     target_system: 1,
-                    target_component: 1,
+                    target_component: 0,
                     frame: frame,
-                    current: 3,
+                    current: 0,
                     autocontinue: 0,
                 },
             ))
