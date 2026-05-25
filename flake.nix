@@ -161,6 +161,17 @@
               '';
             };
 
+            test_adhoc = pkgs.writeShellApplication {
+              name = "test_adhoc";
+              runtimeInputs = [ ];
+              text = ''
+                sudo nmcli device wifi hotspot \
+                    ifname wlP1p1s0 \
+                    ssid JetsonAP \
+                    password jetson123
+              '';
+            };
+
             jetson_set_dev_power = pkgs.writeShellApplication {
               name = "jetson_set_dev_power";
               runtimeInputs = [ ];
@@ -260,19 +271,6 @@
               echo "just is aliased to j"
             '';
           };
-
-
-          test_adhoc = pkgs.writeShellApplication {
-            name = "test_adhoc";
-            runtimeInputs = [];
-            text = ''
-                sudo nmcli device wifi hotspot \
-                    ifname wlP1p1s0 \
-                    ssid JetsonAP \
-                    password jetson123
-            '';
-          };
-
 
         };
       flake = {
