@@ -62,7 +62,10 @@ class BAD_FSM(AbstractFSMBaseClass):
 
     async def on_enter_INIT(self):
         while len(self.geofence) == 0:
+            print("waiting for geofence")
             self.update_geofence()
+            print(f"geofence points: {len(self.geofence)}")
+            await asyncio.sleep(0.3)
 
     async def on_enter_LAUNCH(self) -> None:
         print("waiting to be at takeoff alt")
@@ -99,7 +102,7 @@ class BAD_FSM(AbstractFSMBaseClass):
                 print("failed to reach sweep waypoint")
                 break
 
-            await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
+           # await self.navigate_waypoint(target, 0.4, speed=TEST_SPEED)
 
     async def on_enter_RETURN_TO_HOME(self) -> None:
 
