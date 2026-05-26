@@ -67,7 +67,7 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
             .send_default(&MavMessage::COMMAND_INT(
                 mavlink::ardupilotmega::COMMAND_INT_DATA {
                     param1: target.speed(),             // speed: -1 = use default
-                    param2: 0.0,                        // bitmask: no flags
+                    param2: 0.0,                      // bitmask: no flags
                     param3: target.acceptance_radius(), // radius: 0 = default
                     param4: target.heading(),           // yaw: NaN = unchanged
                     x: target.lat(),

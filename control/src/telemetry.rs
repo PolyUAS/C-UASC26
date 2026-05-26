@@ -36,6 +36,8 @@ pub async fn telemetry_loop<'a>(
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
             Ok((_header, msg)) => {
+                // println!("RECV!");
+                // println!("\n{msg:?}");
                 match msg {
                     // MavMessage::AHRS(data) => {}
                     // MavMessage::AHRS2(data) => {}
@@ -100,6 +102,7 @@ pub async fn telemetry_loop<'a>(
                         let guided = mode.contains(MavModeFlag::MAV_MODE_FLAG_GUIDED_ENABLED);
                         let manual = mode.contains(MavModeFlag::MAV_MODE_FLAG_MANUAL_INPUT_ENABLED);
                         let armed = mode.contains(MavModeFlag::MAV_MODE_FLAG_SAFETY_ARMED);
+
 
                         let status_enum = match data.system_status {
                             mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE => {

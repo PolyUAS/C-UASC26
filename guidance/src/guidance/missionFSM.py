@@ -82,7 +82,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         frame: int = FrameTypeFB.FrameType.GLOBAL_RELATIVE_ALT,
         hdg: float = math.nan,
         speed: float = -1.0,  # m/s, -1 for dflt
-        timeout: float | None = 60.0,
+        timeout: float | None = 10.0,
     ) -> bool:
         """
         Navigate to a waypoint (in ```frame```) with the given heading and acceptance radius.
