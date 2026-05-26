@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+a8mini-camera-rs = "0.2.1"
 
 anyhow = "1.0.102"
 

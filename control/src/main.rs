@@ -3,7 +3,11 @@ use crate::goto::create_movement_subscriber;
 use mavlink::AsyncMavConnection;
 use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
+use mavlink::ardupilotmega::COMMAND_LONG_DATA;
+use mavlink::ardupilotmega::MavCmd;
 use mavlink::ardupilotmega::MavMessage;
+use a8mini_camera_rs::A8Mini;
+
 
 use std::error::Error;
 use std::sync::Arc;
@@ -59,6 +63,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     mavconn.set_allow_recv_any_version(true);
 
     let vehicle = Arc::new(mavconn);
+
+    request_global_position_int(&vehicle).await;
+
+
+    let camera = A8Mini::connect()
+        .await
+        .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
+    let camera = Arc::new(camera);
+
     // shutdown signal
     let running = Arc::new(AtomicBool::new(true));
 
@@ -85,7 +98,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
     let mut grxclone = gimbal_rx.clone();
     // In a dedicated task:
-    spawn_gimbal_task(vehicle.clone(), grxclone, &mut bc_tx.subscribe(), &session);
+    spawn_gimbal_task(camera, grxclone, &session);
+
     let _goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 
     sleep(Duration::from_millis(500)).await; // Wait for subscribers
@@ -136,6 +150,33 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await
         .expect("Failed to close control's zenoh session:");
 
+    Ok(())
+}
+
+async fn request_global_position_int(
+    vehicle: &SharedAsyncMavConn,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let header = MavHeader {
+        system_id: 255, // your GCS id
+        component_id: 0,
+        sequence: 0,
+    };
+
+    let msg = MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
+        target_system: 1,
+        target_component: 1,
+        command: MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
+        confirmation: 0,
+        param1: 33.0,      // GLOBAL_POSITION_INT
+        param2: 200_000.0, // 5 Hz in microseconds
+        param3: 0.0,
+        param4: 0.0,
+        param5: 0.0,
+        param6: 0.0,
+        param7: 0.0,
+    });
+
+    vehicle.send(&header, &msg).await?;
     Ok(())
 }
 

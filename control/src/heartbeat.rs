@@ -16,8 +16,7 @@ pub fn create_heartbeat_advertiser(
                         custom_mode: 0x0,
                         mavtype: mavlink::ardupilotmega::MavType::MAV_TYPE_ONBOARD_CONTROLLER,
                         autopilot: mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_INVALID,
-                        base_mode:
-                            mavlink::ardupilotmega::MavModeFlag::MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+                        base_mode: mavlink::ardupilotmega::MavModeFlag::MAV_MODE_FLAG_AUTO_ENABLED,
                         system_status: mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE,
                         mavlink_version: 3,
                     },
