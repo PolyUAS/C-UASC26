@@ -10,6 +10,7 @@ from guidance.generated.waypoint.Waypoint import Waypoint
 from guidance.geo_utils import WaypointStruct
 from guidance.lawnmower import generate_lawnmower_sweep
 from guidance.missionFSM import AbstractFSMBaseClass
+from guidance.generated.Geofence.GeofencePacket import GeofencePacket
 
 TEST_SPEED = 1.0  # ms/s
 
@@ -61,17 +62,24 @@ class BAD_FSM(AbstractFSMBaseClass):
         # print(f"Prev = LAND, Current = {self.current_state.id}... Next = None")  # type: ignore
 
     async def on_enter_INIT(self):
-        while len(self.geofence) == 0:
-            print("waiting for geofence")
-            self.update_geofence()
-            print(f"geofence points: {len(self.geofence)}")
-            await asyncio.sleep(0.3)
+        print("loading geofence from /home/mvela/ardupilot/fence-items.txt")
+        self.geofence = []
+
+        with open("/home/mvela/ardupilot/lawnmower-fence.txt") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 10 and parts[3] == "5001":
+                    lat = int(float(parts[8]) * 10_000_000)
+                    lon = int(float(parts[9]) * 10_000_000)
+                    self.geofence.append(WaypointStruct(lat, lon, self.pos.alt))
+
+        print(f"geofence points: {len(self.geofence)}")
 
     async def on_enter_LAUNCH(self) -> None:
         print("waiting to be at takeoff alt")
 
         while self.pos.alt < 12_000.0:
-            # self.update_geofence()
+            # self.set_geofence()
             print(f"alt: {self.pos.alt}")
             await asyncio.sleep(0.300)
 
@@ -97,6 +105,8 @@ class BAD_FSM(AbstractFSMBaseClass):
                 speed=5.0,
                 timeout=60.0,
             )
+
+            await asyncio.sleep(8.0)
 
             if not success:
                 print("failed to reach sweep waypoint")

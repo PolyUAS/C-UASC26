@@ -37,9 +37,6 @@ def main():
     # Wait for subscribers to be ready
     sleep(0.5)
 
-    while True:
-        pass
-
     print("running fsm")
 
     asyncio.run(fsm.run())

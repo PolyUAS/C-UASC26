@@ -4,17 +4,9 @@ from guidance.geo_utils import WaypointStruct
 
 
 def _coord_to_deg(point) -> tuple[float, float]:
-    """
-    Converts a geofence point to lat/lon degrees.
-
-    Expected input:
-        point.Lat()
-        point.Lon()
-
-    Returns:
-        (lat_deg, lon_deg)
-    """
-    return float(point.Lat()), float(point.Lon())
+    if hasattr(point, "Lat") and hasattr(point, "Lon"):
+        return float(point.Lat()), float(point.Lon())
+    return float(point.lat) / 10_000_000.0, float(point.lon) / 10_000_000.0
 
 
 def _deg_to_local_xy(
