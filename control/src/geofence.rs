@@ -54,17 +54,15 @@ pub async fn get_geofence(
 
     let start = std::time::Instant::now();
     while start.elapsed() < timeout {
-        tokio::select! {
-            Ok((_, msg)) = bc_rx.recv() => {
-                if let MavMessage::PARAM_VALUE(pv) = msg {
-                    if pv.param_id.starts_with(b"FENCE_TOTAL\0") {
-                        total_points = pv.param_value as u8;
-                        break;
-                    }
+        if let Ok((_, msg)) = bc_rx.recv().await {
+            if let MavMessage::PARAM_VALUE(pv) = msg {
+                if pv.param_id[..=11] == *b"FENCE_TOTAL" {
+                    total_points = pv.param_value as u8;
+                    break;
                 }
             }
-            _ = tokio::time::sleep(Duration::from_millis(50)) => {}
         }
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 
     if total_points == 0 {
@@ -79,30 +77,29 @@ pub async fn get_geofence(
             .send_default(&MavMessage::FENCE_FETCH_POINT(FENCE_FETCH_POINT_DATA {
                 target_system: sys,
                 target_component: comp,
-                idx: idx as u8,
+                idx: idx as u8, // note: idx is u8
                 ..Default::default()
             }))
             .await?;
 
         let start = std::time::Instant::now();
         while start.elapsed() < Duration::from_millis(500) {
-            tokio::select! {
-                Ok((_, msg)) = bc_rx.recv() => {
-                    if let MavMessage::FENCE_POINT(point) = msg {
-                        if point.idx == idx as u8 {
-                            println!(
-                                "Fence point {}: lat={}, lng={}",
-                                point.idx, point.lat, point.lng
-                            );
-                            points.push(point);
-                            break;
-                        }
+            if let Ok((_, msg)) = bc_rx.recv().await {
+                if let MavMessage::FENCE_POINT(point) = msg {
+                    if point.idx == idx as u8 {
+                        println!(
+                            "Fence point {}: lat={}, lng={}",
+                            point.idx, point.lat, point.lng
+                        );
+                        points.push(point);
+                        break;
                     }
                 }
-                _ = tokio::time::sleep(Duration::from_millis(20)) => {}
             }
+            tokio::time::sleep(Duration::from_millis(20)).await;
         }
     }
+
     Ok(points)
 }
 

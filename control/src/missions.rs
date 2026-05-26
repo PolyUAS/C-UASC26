@@ -180,7 +180,7 @@ async fn init_mission_queryable(
     let conn = Arc::new(conn);
 
     session
-        .declare_queryable("control/query/mission")
+        .declare_queryable("control/mission/query_in")
         .callback(move |query: Query| {
             // These cheap clones happen on EVERY call, giving each task its own handle
             // The closure itself still holds `conn` and `bc_rx` after this
@@ -225,7 +225,7 @@ async fn init_mission_queryable(
                 let table = WaypointList::create(&mut fbb, &WaypointListArgs { wps: Some(vwps) });
                 fbb.finish(table, None);
                 let payload = fbb.finished_data().to_vec();
-                query.reply("control/query/mission", payload).await.ok();
+                query.reply("control/mission/query_out", payload).await.ok();
             });
         })
         .await
