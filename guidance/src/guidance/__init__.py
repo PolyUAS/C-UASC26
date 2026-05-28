@@ -5,8 +5,10 @@ guidance - Python Zenoh Node
 import asyncio
 from time import sleep
 
+import flatbuffers
 import zenoh
 
+import guidance.generated.gimbal.State
 from guidance.generated.Position.GlobalPositionInt import GlobalPositionInt
 from guidance.generated.waypoint import FrameType, Waypoint
 from guidance.geo_utils import WaypointStruct
@@ -34,11 +36,33 @@ def main():
     fsm = BAD_FSM(session, home)
     print("init fsm")
 
+    # publ = session.declare_publisher("control/telem/gimbal")
+
     # Wait for subscribers to be ready
     sleep(0.5)
 
-    while True:
-        pass
+    # i = -135.0
+    # j = -160.0
+
+    # while True:
+    #     builder = flatbuffers.Builder(256)
+
+    #     guidance.generated.gimbal.State.Start(builder)
+    #     guidance.generated.gimbal.State.AddPitch(builder, i)
+    #     guidance.generated.gimbal.State.AddYaw(builder, j)
+
+    #     packet = guidance.generated.gimbal.State.End(builder)
+
+    #     builder.Finish(packet)
+    #     payload = bytes(builder.Output())
+    #     publ.put(payload)
+    #     i += 1.0
+    #     j += 1.0
+
+    #     if i > 45.0:
+    #         i = -135.0
+    #     if j > 160.0:
+    #         j = -160.0
 
     print("running fsm")
 
