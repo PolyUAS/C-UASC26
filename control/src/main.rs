@@ -67,10 +67,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     request_global_position_int(&vehicle).await;
 
 
-    let camera = A8Mini::connect()
-        .await
-        .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
-    let camera = Arc::new(camera);
+    //let camera = A8Mini::connect()
+    //    .await
+    //    .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
+    //let camera = Arc::new(camera);
 
     // shutdown signal
     let running = Arc::new(AtomicBool::new(true));
@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
     let mut grxclone = gimbal_rx.clone();
     // In a dedicated task:
-    spawn_gimbal_task(camera, grxclone, &session);
+    //spawn_gimbal_task(camera, grxclone, &session);
 
     let _goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 

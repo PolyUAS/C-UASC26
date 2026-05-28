@@ -71,7 +71,7 @@ class BAD_FSM(AbstractFSMBaseClass):
         target = WaypointStruct(
             self.home.lat,
             self.home.lon,
-            self.pos.alt + 500_000,
+            self.pos.alt + 8_000
         )
         there = False
         while not there:
