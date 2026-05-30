@@ -4,6 +4,8 @@ use flatbuffers::FlatBufferBuilder;
 
 use mavlink::MavHeader;
 use mavlink::ardupilotmega::FENCE_FETCH_POINT_DATA;
+use mavlink::ardupilotmega::MISSION_ITEM_INT_DATA;
+use mavlink::ardupilotmega::MavMissionType;
 use mavlink::ardupilotmega::PARAM_REQUEST_READ_DATA;
 use mavlink::ardupilotmega::{
     MISSION_ACK_DATA, MISSION_REQUEST_INT_DATA, MISSION_REQUEST_LIST_DATA, MavMessage,
@@ -30,38 +32,35 @@ async fn fetch_fence_count(
     bc_rx: &mut Receiver<(MavHeader, MavMessage)>,
     sys: u8,
     comp: u8,
-) -> Result<u8, Box<dyn Error + Send + Sync>> {
-    let name = "FENCE_TOTAL";
-    let mut name_as_bytes = [0u8; 16];
-    name_as_bytes[..name.len()].copy_from_slice(name.as_bytes());
-
+) -> Result<u16, Box<dyn Error + Send + Sync>> {
+    // 1. Tell the FC we want to download the fence items
     vehicle
-        .send_default(&MavMessage::PARAM_REQUEST_READ(PARAM_REQUEST_READ_DATA {
-            target_system: sys,
-            target_component: comp,
-            param_id: CharArray::new(name_as_bytes),
-            param_index: -1,
-        }))
+        .send_default(&MavMessage::MISSION_REQUEST_LIST(
+            MISSION_REQUEST_LIST_DATA {
+                target_system: sys,
+                target_component: comp,
+                mission_type: MavMissionType::MAV_MISSION_TYPE_FENCE,
+            },
+        ))
         .await?;
 
     let deadline = std::time::Instant::now();
     while deadline.elapsed() < COUNT_TIMEOUT {
         tokio::select! {
-                    Ok((_, msg)) = bc_rx.recv() => {
-                        if let MavMessage::PARAM_VALUE(pv) = msg {
-                            if pv.param_id.as_slice().starts_with(b"FENCE_TOTAL") {
-                                let total_points = pv.param_value as u8;
-                                return Ok(total_points);
-                            } else {
-                                continue;
-                            }
-                        }
+            Ok((_, msg)) = bc_rx.recv() => {
+                // 2. Expect a MISSION_COUNT response
+                if let MavMessage::MISSION_COUNT(cnt) = msg {
+                    if cnt.mission_type == MavMissionType::MAV_MISSION_TYPE_FENCE {
+                        println!("FC reported {} fence points.", cnt.count);
+                        return Ok(cnt.count);
                     }
-                    _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+                }
+            }
+            _ = tokio::time::sleep(Duration::from_millis(50)) => {}
         }
     }
 
-    Ok(0)
+    Err("Timeout waiting for MISSION_COUNT".into())
 }
 
 async fn fetch_fence_item(
@@ -69,16 +68,17 @@ async fn fetch_fence_item(
     bc_rx: &mut Receiver<(MavHeader, MavMessage)>,
     sys: u8,
     comp: u8,
-    idx: u8,
+    idx: u16,
 ) -> Option<(f32, f32)> {
     for attempt in 0..ITEM_MAX_RETRIES {
         println!("grabbing fence item: {idx}, attempt: {attempt}");
 
         if let Err(e) = vehicle
-            .send_default(&&MavMessage::FENCE_FETCH_POINT(FENCE_FETCH_POINT_DATA {
+            .send_default(&MavMessage::MISSION_REQUEST_INT(MISSION_REQUEST_INT_DATA {
                 target_system: sys,
                 target_component: comp,
-                idx: idx,
+                seq: idx as u16,
+                mission_type: mavlink::ardupilotmega::MavMissionType::MAV_MISSION_TYPE_FENCE,
             }))
             .await
         {
@@ -91,11 +91,9 @@ async fn fetch_fence_item(
             tokio::select! {
                 result = bc_rx.recv() => {
                     match result {
-
-                        Ok((_, MavMessage::FENCE_POINT(item))) if item.idx == idx => {
-                            // MISSION_ITEM_INT stores lat/lng as 1e7 fixed-point integers
-                            let lat = item.lat as f32 / 1e7;
-                            let lng = item.lng as f32 / 1e7;
+                        Ok((_, MavMessage::MISSION_ITEM_INT(item))) => {
+                            let lat = item.x as f32 / 1e7;
+                            let lng = item.y as f32 / 1e7;
                             println!("Fence item {idx}: lat={lat}, lng={lng}");
                             return Some((lat, lng));
                         }
@@ -131,9 +129,28 @@ async fn send_mission_ack(
         .send_default(&MavMessage::MISSION_ACK(MISSION_ACK_DATA {
             target_system: sys,
             target_component: comp,
+            mission_type: mavlink::ardupilotmega::MavMissionType::MAV_MISSION_TYPE_FENCE,
+            opaque_id: 42,
             mavtype: MavMissionResult::MAV_MISSION_ACCEPTED,
         }))
         .await
+}
+
+async fn send_mission_error_ack(
+    vehicle: &SharedAsyncMavConn,
+    sys: u8,
+    comp: u8,
+    error_type: MavMissionResult,
+) {
+    let _ = vehicle
+        .send_default(&MavMessage::MISSION_ACK(MISSION_ACK_DATA {
+            target_system: sys,
+            target_component: comp,
+            mission_type: mavlink::ardupilotmega::MavMissionType::MAV_MISSION_TYPE_FENCE,
+            opaque_id: 42,
+            mavtype: error_type,
+        }))
+        .await;
 }
 
 pub async fn get_geofence(
@@ -142,25 +159,43 @@ pub async fn get_geofence(
 ) -> Result<Vec<(f32, f32)>, Box<dyn Error + Send + Sync>> {
     let (sys, comp) = fc_header_utils::wait_for_headers().await;
 
-    let count = fetch_fence_count(vehicle, bc_rx, sys, comp).await?;
+    // Use the proper sequence initialization
+    let count = match fetch_fence_count(vehicle, bc_rx, sys, comp).await {
+        Ok(c) => c,
+        Err(e) => {
+            println!("Failed to get fence count: {e}");
+            return Ok(Vec::new());
+        }
+    };
 
     if count == 0 {
-        println!("Fence count was 0 or timed out — no geofence stored on FC");
+        // Even if count is 0, send an ACK to be safe and clear state
+        let _ = send_mission_ack(vehicle, sys, comp).await;
         return Ok(Vec::new());
     }
 
-    println!("Fetching {count} fence items...");
-
     let mut points = Vec::with_capacity(count as usize);
+    let mut success = true;
+
     for idx in 0..count {
         match fetch_fence_item(vehicle, bc_rx, sys, comp, idx).await {
             Some(point) => points.push(point),
-            None => println!("Skipping missing fence item {idx}"),
+            None => {
+                println!("Critical: Failed to retrieve fence item {idx}!");
+                success = false;
+                break; // Break early so we don't hang endlessly
+            }
         }
     }
 
-    if let Err(e) = send_mission_ack(vehicle, sys, comp).await {
-        println!("Warning: failed to send MISSION_ACK: {e}");
+    if success {
+        if let Err(e) = send_mission_ack(vehicle, sys, comp).await {
+            println!("Warning: failed to send MISSION_ACK: {e}");
+        }
+    } else {
+        // Tell the FC we are abandoning the transfer so it unlocks its state machine
+        println!("Sending MAV_MISSION_ERROR to abort stuck transaction");
+        send_mission_error_ack(vehicle, sys, comp, MavMissionResult::MAV_MISSION_ERROR).await;
     }
 
     Ok(points)

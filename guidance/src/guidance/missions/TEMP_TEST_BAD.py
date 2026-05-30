@@ -130,8 +130,6 @@ class BAD_FSM(AbstractFSMBaseClass):
                 timeout=60.0,
             )
 
-            await asyncio.sleep(8.0)
-
             if not success:
                 print("failed to reach sweep waypoint")
                 break

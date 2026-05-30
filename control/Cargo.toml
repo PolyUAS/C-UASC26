@@ -11,7 +11,7 @@ anyhow = "1.0.102"
 ctrlc = "3.5.1"
 flatbuffers = "25.12.19"
 
-mavlink = { version = "0.17.1", features = ["tokio-1", "common", "ardupilotmega"] }
+mavlink = { version = "0.17.1", features = ["tokio-1", "common", "ardupilotmega", "emit-extensions"] }
 tokio = { version = "1.49.0", features = ["full"] }
 
 

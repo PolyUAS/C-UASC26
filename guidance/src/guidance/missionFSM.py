@@ -76,7 +76,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                 pt = packet.Points(i)
                 if pt is not None:
                     self.geofence.append(pt)
-                    print(f"constructing geo: {self.geofence}")
+                    # print(f"constructing geo: {self.geofence}")
 
     def update_geofence(self):
         pack = self.geofence_queryier.get().recv()
@@ -133,7 +133,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                         # print(f"dist: {d}, a: {a_rad}")
 
                         d = self.pos.distance_to(t)
-                        # print(f"GUIDANCE: dist to target = {d}")
+                        print(f"GUIDANCE: dist to target = {d}")
                         await asyncio.sleep(0.01)
             except TimeoutError:
                 return False  # overall timeout → mission failure

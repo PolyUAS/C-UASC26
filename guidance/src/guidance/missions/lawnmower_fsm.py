@@ -87,6 +87,9 @@ class LAWNMOWER_FSM(AbstractFSMBaseClass):
             sample_step_m=1.0,
         )
 
+        for pt in sweep_points:
+            print(f"pt! = lat: {pt.lat}, lon: {pt.lon}, alt: {pt.alt}")
+
         print(f"generated {len(sweep_points)} sweep waypoints")
 
         for i, waypoint in enumerate(sweep_points):
@@ -94,8 +97,7 @@ class LAWNMOWER_FSM(AbstractFSMBaseClass):
 
             success = await self.navigate_waypoint(
                 waypoint,
-                a_rad=1.0,
-                speed=5.0,
+                a_rad=2.0,
                 timeout=60.0,
             )
 

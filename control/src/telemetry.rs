@@ -105,6 +105,11 @@ pub async fn telemetry_loop<'a>(
                         let manual = mode.contains(MavModeFlag::MAV_MODE_FLAG_MANUAL_INPUT_ENABLED);
                         let armed = mode.contains(MavModeFlag::MAV_MODE_FLAG_SAFETY_ARMED);
 
+                        if guided {
+                            IS_GUIDED_ENABLED.store(true, std::sync::atomic::Ordering::Release);
+                        } else {
+                            IS_GUIDED_ENABLED.store(false, std::sync::atomic::Ordering::Release);
+                        }
 
                         let status_enum = match data.system_status {
                             mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE => {

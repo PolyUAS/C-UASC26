@@ -44,6 +44,7 @@ pub async fn get_missions(
             mavlink::ardupilotmega::MISSION_REQUEST_LIST_DATA {
                 target_system: sys,
                 target_component: comp,
+                mission_type: mavlink::ardupilotmega::MavMissionType::MAV_MISSION_TYPE_MISSION,
             },
         ))
         .await
@@ -74,6 +75,7 @@ pub async fn get_missions(
                 seq: i,
                 target_component: comp,
                 target_system: sys,
+                mission_type: mavlink::ardupilotmega::MavMissionType::MAV_MISSION_TYPE_ALL,
             }))
             .await;
 
@@ -109,6 +111,8 @@ pub async fn get_missions(
         .send_default(&MavMessage::MISSION_ACK(MISSION_ACK_DATA {
             target_system: sys,
             target_component: comp,
+            mission_type: mavlink::ardupilotmega::MavMissionType::MAV_MISSION_TYPE_ALL,
+            opaque_id: 42,
             mavtype: mavlink::ardupilotmega::MavMissionResult::MAV_MISSION_ACCEPTED,
         }))
         .await;
