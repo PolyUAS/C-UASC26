@@ -66,75 +66,12 @@ class BAD_FSM(AbstractFSMBaseClass):
         await self.on_return()  # RETURN_TO_HOME -> LAND
         await self.on_finish()  # LAND -> COMPLETE
 
-    async def fetch_geofence(self, query_key: str = "control/query/geofence") -> None:
-        self.geofence = []
-
-        def _get_replies():
-            return list(self.session.get(query_key))
-
-        replies = await asyncio.to_thread(_get_replies)
-
-        for reply in replies:
-            if not reply.ok:
-                continue
-
-            payload = reply.ok.payload.to_bytes()
-            packet = GeofencePacket.GetRootAs(payload)
-
-            coords_len = packet.PointsLength()
-            if coords_len:
-                for i in range(coords_len):
-                    pt = packet.Points(i)
-                    if pt is not None:
-                        self.geofence.append(
-                            WaypointStruct(
-                                pt.Lat(),
-                                pt.Lon(),
-                                self.pos.alt,
-                            )
-                        )
-
-            if self.geofence:
-                return
-
-        print("control returned no geofence points; loading fallback file")
-        self._load_geofence_from_file(FALLBACK_FENCE_FILE)
-
-    def _load_geofence_from_file(self, filename: str) -> None:
-        self.geofence = []
-
-        with open(filename) as f:
-            for line in f:
-                line = line.strip()
-
-                if not line or line.startswith("QGC"):
-                    continue
-
-                fields = line.split()
-                if len(fields) < 12:
-                    continue
-
-                command = fields[3]
-                if command != "5001":
-                    continue
-
-                lat = int(float(fields[8]) * 10_000_000)
-                lon = int(float(fields[9]) * 10_000_000)
-
-                self.geofence.append(
-                    WaypointStruct(
-                        lat,
-                        lon,
-                        self.pos.alt,
-                    )
-                )
-
     async def on_enter_INIT(self) -> None:
         print(f"mission mode: {self.mission_mode.value}")
 
         if self.mission_mode == MissionMode.OBJECT_LOCALIZATION:
             print("requesting geofence from control/query/geofence")
-            await self.fetch_geofence()
+            self.update_geofence()
             print(f"geofence points: {len(self.geofence)}")
 
     async def on_enter_LAUNCH(self) -> None:

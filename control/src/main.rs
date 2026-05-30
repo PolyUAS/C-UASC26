@@ -1,13 +1,12 @@
 use crate::gimbal_utils::spawn_gimbal_task;
 use crate::goto::create_movement_subscriber;
+use a8mini_camera_rs::A8Mini;
 use mavlink::AsyncMavConnection;
 use mavlink::MavHeader;
 use mavlink::MavlinkVersion;
 use mavlink::ardupilotmega::COMMAND_LONG_DATA;
 use mavlink::ardupilotmega::MavCmd;
 use mavlink::ardupilotmega::MavMessage;
-use a8mini_camera_rs::A8Mini;
-
 
 use std::error::Error;
 use std::sync::Arc;
@@ -66,16 +65,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     request_global_position_int(&vehicle).await;
 
+    // let camera = A8Mini::connect()
+    //     .await
+    //     .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
+    // let camera = Arc::new(camera);
 
-    let camera = A8Mini::connect()
-        .await
-        .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
-    let camera = Arc::new(camera);
+    request_global_position_int(&vehicle).await.ok();
 
     // shutdown signal
     let running = Arc::new(AtomicBool::new(true));
 
-    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(128);
+    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(1024);
     // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
     // Each subsystem takes bc_tx.subscribe()
 
@@ -98,7 +98,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _gimbal_sub = create_gimbal_subscriber(&session, gimbal_tx).await;
     let mut grxclone = gimbal_rx.clone();
     // In a dedicated task:
-    spawn_gimbal_task(camera, grxclone, &session);
+
+    // spawn_gimbal_task(camera, grxclone, &session);
 
     let _goto_sub = create_movement_subscriber(session.clone(), vehicle.clone()).await;
 

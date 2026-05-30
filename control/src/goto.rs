@@ -1,10 +1,14 @@
-use mavlink::ardupilotmega::{MavCmd, MavFrame, MavMessage};
+use mavlink::{
+    ardupilotmega::{MavCmd, MavFrame, MavMessage, MavModeFlag},
+    common::MavDoRepositionFlags::MAV_DO_REPOSITION_FLAGS_CHANGE_MODE,
+};
 use zenoh::{Session, pubsub::Subscriber};
 
 use crate::{
     SharedAsyncMavConn,
     fc_header_utils::get_headers,
     generated::waypoint_generated::waypoint::{self, Waypoint, root_as_waypoint},
+    telemetry::IS_GUIDED_ENABLED,
 };
 
 pub async fn create_movement_subscriber(
@@ -61,6 +65,10 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
         //     "
         //     );
         // }
+        //
+        if !IS_GUIDED_ENABLED.load(std::sync::atomic::Ordering::Acquire) {
+            return;
+        }
 
         println!("RECV MSG");
         let res = conn

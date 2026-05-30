@@ -309,6 +309,102 @@ impl ::core::fmt::Debug for Waypoint<'_> {
       ds.finish()
   }
 }
+pub enum WaypointListOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct WaypointList<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for WaypointList<'a> {
+  type Inner = WaypointList<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> WaypointList<'a> {
+  pub const VT_WPS: ::flatbuffers::VOffsetT = 4;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    WaypointList { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args WaypointListArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<WaypointList<'bldr>> {
+    let mut builder = WaypointListBuilder::new(_fbb);
+    if let Some(x) = args.wps { builder.add_wps(x); }
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn wps(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Waypoint<'a>>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Waypoint>>>>(WaypointList::VT_WPS, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for WaypointList<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Waypoint>>>>("wps", Self::VT_WPS, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct WaypointListArgs<'a> {
+    pub wps: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Waypoint<'a>>>>>,
+}
+impl<'a> Default for WaypointListArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    WaypointListArgs {
+      wps: None,
+    }
+  }
+}
+
+pub struct WaypointListBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> WaypointListBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_wps(&mut self, wps: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<Waypoint<'b >>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(WaypointList::VT_WPS, wps);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> WaypointListBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    WaypointListBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<WaypointList<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for WaypointList<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("WaypointList");
+      ds.field("wps", &self.wps());
+      ds.finish()
+  }
+}
 #[inline]
 /// Verifies that a buffer of bytes contains a `Waypoint`
 /// and returns it.

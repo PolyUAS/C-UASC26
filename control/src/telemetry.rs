@@ -24,6 +24,8 @@ use crate::generated::heartbeat_generated::heartbeat::HeartbeatHealthPacket;
 use crate::position_generated::position::GlobalPositionInt;
 use crate::position_generated::position::GlobalPositionIntArgs;
 
+pub static IS_GUIDED_ENABLED: AtomicBool = AtomicBool::new(false);
+
 pub async fn telemetry_loop<'a>(
     vehicle: &mut Receiver<(MavHeader, MavMessage)>,
     position_pub: &Publisher<'a>,

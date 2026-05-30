@@ -9,6 +9,7 @@ from statemachine import State, StateMachine
 from statemachine.transition_list import TransitionList
 from zenoh import Sample, Session
 
+import guidance
 import guidance.generated.Control_Squid.Squidarm as SquidarmFB
 import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
 import guidance.generated.waypoint.FrameType as FrameTypeFB
@@ -48,6 +49,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         self.position_sub = session.declare_subscriber(
             "control/telem/gl_pos_int", self._set_pos
         )
+        self.geofence_queryier = session.declare_querier("control/query/geofence")
 
         payload_input_sub_str = "control/in/squidarm"
         if os.environ.get("DRONE_NAME") == "HORUS":
@@ -74,6 +76,15 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                 pt = packet.Points(i)
                 if pt is not None:
                     self.geofence.append(pt)
+                    print(f"constructing geo: {self.geofence}")
+
+    def update_geofence(self):
+        pack = self.geofence_queryier.get().recv()
+
+        pack = pack.ok
+        if pack is not None:
+            geo = GeofencePacket.GetRootAs(pack.payload.to_bytes())
+            self.set_geofence(geo)
 
     async def navigate_waypoint(
         self,
