@@ -53,15 +53,17 @@
           # This is equivalent to packages.<system>.default
 
           # Generate shared Zenoh config (customize as needed; could derive from template)
-          sharedConfig = pkgs.writeText "zenoh-config.json" ''
+          sharedConfig = pkgs.writeText "zenoh-peer-config.json" ''
             {
-              mode: "client",
-              connect: {
-                endpoints: ["tcp/127.0.0.1:7447"]
-              },
-              scouting: {
-                multicast: {
-                  enabled: false
+              "mode": "peer",
+              "scouting": {
+                "multicast": {
+                  "enabled": true,
+                  "listen": true,
+                  "autoconnect": {
+                    "router": [],
+                    "peer": ["router", "peer"]
+                  }
                 }
               }
             }
@@ -69,9 +71,14 @@
 
           routerCfg = pkgs.writeText "zenoh-router-cfg.json" ''
             {
-              mode: "router",
-              listen: {
-                endpoints: ["tcp/127.0.0.1:7447"]
+              "mode": "router",
+              "listen": {
+                "endpoints": ["tcp/127.0.0.1:7447"]
+              },
+              "transport": {
+                "unicast": {
+                  "lowlatency": true
+                }
               }
             }
           '';
@@ -143,18 +150,17 @@
                 export ZENOH_CONFIG=${sharedConfig}
                 echo "Launching with shared config: $ZENOH_CONFIG"
 
-                zenohd -c ${routerCfg} 1>/dev/null &
-                ZENOH_PID=$!
 
-                sleep 3
 
                 control &
                 CONTROL_PID=$!
 
+                sleep 1  # give control time to connect and start publishing before guidance subscribes
+
                 guidance &
                 GUIDANCE_PID=$!
 
-                trap 'kill $ZENOH_PID $GUIDANCE_PID $CONTROL_PID 2>/dev/null && jetson_reset_power' EXIT INT TERM
+                trap 'kill $GUIDANCE_PID $CONTROL_PID 2>/dev/null && jetson_reset_power' EXIT INT TERM
 
                 wait $CONTROL_PID $GUIDANCE_PID
 
@@ -216,18 +222,17 @@
                 export ZENOH_CONFIG=${sharedConfig}
                 echo "Launching with shared config: $ZENOH_CONFIG"
 
-                zenohd -c ${routerCfg} 1>/dev/null &
-                ZENOH_PID=$!
 
-                sleep 3
 
                 control &
                 CONTROL_PID=$!
 
+                sleep 1  # give control time to connect and start publishing before guidance subscribes
+
                 guidance &
                 GUIDANCE_PID=$!
 
-                trap 'kill $ZENOH_PID $GUIDANCE_PID $CONTROL_PID 2>/dev/null' EXIT INT TERM
+                trap 'kill $GUIDANCE_PID $CONTROL_PID 2>/dev/null' EXIT INT TERM
 
                 wait $CONTROL_PID $GUIDANCE_PID
 

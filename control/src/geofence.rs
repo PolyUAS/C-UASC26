@@ -248,12 +248,15 @@ pub async fn create_geofence_queryable(
                     }
                 };
 
-                let _ = query
+                if let Err(e) = query
                     .reply(
                         "control/query/geofence",
                         zenoh::bytes::ZBytes::from(payload),
                     )
-                    .await;
+                    .await
+                {
+                    println!("Failed to reply to Zenoh query: {e:?}");
+                }
             });
         })
         .await

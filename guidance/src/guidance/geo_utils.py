@@ -38,6 +38,9 @@ class WaypointStruct:
         """
         return metric_dist(self, other)
 
+    def __str__(self):
+        return f"{self.lat}, {self.lon}, {self.alt}"
+
 
 def metric_dist(w1: WaypointStruct, w2: WaypointStruct) -> float:
     """

@@ -18,13 +18,11 @@ pub async fn create_movement_subscriber(
     session
         .declare_subscriber("control/in/target_pos")
         .callback(move |sample| {
-            let payload = sample.payload().to_bytes().into_owned(); // ensure on MY heap
-
-            let conn = conn.clone(); // clone the conenction for the closure
+            let payload = sample.payload().to_bytes().into_owned();
+            let conn = conn.clone();
 
             tokio::spawn(async move {
-                let target = root_as_waypoint(&*payload).ok();
-                if let Some(target) = target {
+                if let Ok(target) = root_as_waypoint(&*payload) {
                     move_to(conn, target).await;
                 }
             });
@@ -48,55 +46,38 @@ pub async fn move_to<'a>(conn: SharedAsyncMavConn, target: Waypoint<'a>) {
             _ => MavFrame::MAV_FRAME_GLOBAL_RELATIVE_ALT,
         };
 
-        // {
-        //     let lat = target.lat();
-        //     let lon = target.lon();
-        //     let alt = target.alt();
-        //     let hdg = target.heading();
-        //     let ar = target.acceptance_radius();
-        //     let spd = target.speed();
-
-        //     println!(
-        //         "
-        //     Target:
-        //     lat {lat} lon {lon} alt {alt}
-        //     hdg {hdg} spd {spd}
-        //     ar {ar}
-        //     "
-        //     );
-        // }
-        //
         if !IS_GUIDED_ENABLED.load(std::sync::atomic::Ordering::Acquire) {
-            println!("GUIDED NOT ENABLED!!!");
+            println!("GUIDED NOT ENABLED!!! Reposition rejected.");
             return;
         }
 
-        println!("RECV MSG");
+        println!("Sending Reposition Command to Sys: {sys}, Comp: {comp}");
+
+        // Use COMMAND_INT for precision movement to the proper components
         let res = conn
             .send_default(&MavMessage::COMMAND_INT(
                 mavlink::ardupilotmega::COMMAND_INT_DATA {
-                    param1: target.speed(),             // speed: -1 = use default
-                    param2: 0.0,                        // bitmask: no flags
-                    param3: target.acceptance_radius(), // radius: 0 = default
-                    param4: target.heading(),           // yaw: NaN = unchanged
+                    param1: target.speed(),
+                    param2: MAV_DO_REPOSITION_FLAGS_CHANGE_MODE as u32 as f32, // Let FC know it can apply guided updates
+                    param3: target.acceptance_radius(),
+                    param4: target.heading(),
                     x: target.lat(),
                     y: target.lon(),
                     z: target.alt(),
                     command: MavCmd::MAV_CMD_DO_REPOSITION,
-                    target_system: 1,
-                    target_component: 0,
-                    frame: frame,
+                    target_system: sys,     // Fixed from hardcoded 1
+                    target_component: comp, // Fixed from hardcoded 0
+                    frame,
                     current: 0,
                     autocontinue: 0,
                 },
             ))
             .await;
 
-        match res {
-            Ok(_) => {}
-            Err(e) => {
-                println!("Error moving drone, write err: {e}");
-            }
+        if let Err(e) = res {
+            println!("Error moving drone, write err: {e}");
         }
+    } else {
+        println!("Cannot execute move_to: No valid flight controller headers found yet!");
     }
 }

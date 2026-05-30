@@ -34,6 +34,7 @@ def main():
     home = WaypointStruct(packet.Lat(), packet.Lon(), packet.AltAboveHome() * 1.0)
 
     fsm = LAWNMOWER_FSM(session, home)
+
     print("init fsm")
 
     publ = session.declare_publisher("control/telem/gimbal")

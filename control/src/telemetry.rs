@@ -1,8 +1,6 @@
 use flatbuffers::{self, FlatBufferBuilder};
-use mavlink::Message;
-
 use mavlink::MavHeader;
-
+use mavlink::Message;
 use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
 
 use tokio::sync::broadcast::Receiver;
@@ -10,19 +8,6 @@ use zenoh::pubsub::Publisher;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-
-use zenoh::{self};
-
-use crate::attitude_generated::attitude::AttitudePacket;
-use crate::attitude_generated::attitude::AttitudePacketArgs;
-
-use crate::battery_generated::battery::BatteryStatus;
-use crate::battery_generated::battery::BatteryStatusArgs;
-
-use crate::generated::heartbeat_generated;
-use crate::generated::heartbeat_generated::heartbeat::HeartbeatHealthPacket;
-use crate::position_generated::position::GlobalPositionInt;
-use crate::position_generated::position::GlobalPositionIntArgs;
 
 pub static IS_GUIDED_ENABLED: AtomicBool = AtomicBool::new(false);
 
@@ -34,16 +19,18 @@ pub async fn telemetry_loop<'a>(
     heartbeat_pub: &Publisher<'a>,
     running: &Arc<AtomicBool>,
 ) {
-    let mut builder = FlatBufferBuilder::new();
+    // Start with a healthy capacity to minimize internal re-allocations
+    let mut builder = FlatBufferBuilder::with_capacity(4096);
+
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
             Ok((_header, msg)) => {
-                // println!("RECV!");
-                // println!("\n{msg:?}");
                 match msg {
-                    // MavMessage::AHRS(data) => {}
-                    // MavMessage::AHRS2(data) => {}
                     MavMessage::ATTITUDE(data) => {
+                        use crate::attitude_generated::attitude::{
+                            AttitudePacket, AttitudePacketArgs,
+                        };
+
                         let root = AttitudePacket::create(
                             &mut builder,
                             &AttitudePacketArgs {
@@ -56,28 +43,37 @@ pub async fn telemetry_loop<'a>(
                             },
                         );
                         builder.finish(root, None);
-                        let payload = builder.finished_data().to_vec();
 
-                        attitude_pub.put(payload).await.ok();
-                    }
-                    MavMessage::BATTERY_STATUS(data) => {
-                        let root = BatteryStatus::create(
-                            &mut builder,
-                            &BatteryStatusArgs {
-                                consumed_current: data.current_consumed,
-                                consumed_energy: data.energy_consumed,
-                                temperature: data.temperature,
-                                battery_current: data.current_battery,
-                                id: data.id,
-                                remaining: data.battery_remaining,
-                            },
-                        );
-                        builder.finish(root, None);
+                        // Copy the bytes into a lightweight stack allocation or vector before resetting
                         let payload = builder.finished_data().to_vec();
-                        let _ = battery_pub.put(payload).await;
+                        builder.reset(); // Reset early to free the builder reference
+
+                        let _ = attitude_pub.put(payload).await;
                     }
-                    // MavMessage::EKF_STATUS_REPORT(data) => {}
+
                     MavMessage::GLOBAL_POSITION_INT(data) => {
+                        use crate::position_generated::position::{
+                            GlobalPositionInt, GlobalPositionIntArgs,
+                        };
+
+                        static LAST_POS_PUBLISH: std::sync::atomic::AtomicU64 =
+                            std::sync::atomic::AtomicU64::new(0);
+
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis() as u64;
+
+                        let last = LAST_POS_PUBLISH.load(Ordering::Relaxed);
+                        if now - last < 200 {
+                            // 5Hz max
+                            continue; // skip this message
+                        }
+                        LAST_POS_PUBLISH.store(now, Ordering::Relaxed);
+                        // println!("Publishing position: lat={} lon={}", data.lat, data.lon);
+
+                        builder.reset();
+
                         let root = GlobalPositionInt::create(
                             &mut builder,
                             &GlobalPositionIntArgs {
@@ -92,23 +88,29 @@ pub async fn telemetry_loop<'a>(
                             },
                         );
                         builder.finish(root, None);
-                        let payload = builder.finished_data().to_vec();
-                        position_pub.put(payload).await.ok();
-                    }
-                    // MavMessage::GPS2_RAW(data) => {}
-                    // MavMessage::GPS_RAW_INT(data) => {}
-                    MavMessage::HEARTBEAT(data) => {
-                        let mode = &data.base_mode;
 
+                        let payload = builder.finished_data().to_vec();
+                        builder.reset();
+
+                        let _ = position_pub.put(payload).await;
+                    }
+
+                    MavMessage::HEARTBEAT(data) => {
+                        use crate::generated::heartbeat_generated::{
+                            self,
+                            heartbeat::{HeartbeatHealthPacket, HeartbeatHealthPacketArgs},
+                        };
+
+                        let mode = &data.base_mode;
                         let auto = mode.contains(MavModeFlag::MAV_MODE_FLAG_AUTO_ENABLED);
                         let guided = mode.contains(MavModeFlag::MAV_MODE_FLAG_GUIDED_ENABLED);
                         let manual = mode.contains(MavModeFlag::MAV_MODE_FLAG_MANUAL_INPUT_ENABLED);
                         let armed = mode.contains(MavModeFlag::MAV_MODE_FLAG_SAFETY_ARMED);
 
                         if guided {
-                            IS_GUIDED_ENABLED.store(true, std::sync::atomic::Ordering::Release);
+                            IS_GUIDED_ENABLED.store(true, Ordering::Release);
                         } else {
-                            IS_GUIDED_ENABLED.store(false, std::sync::atomic::Ordering::Release);
+                            IS_GUIDED_ENABLED.store(false, Ordering::Release);
                         }
 
                         let status_enum = match data.system_status {
@@ -143,61 +145,36 @@ pub async fn telemetry_loop<'a>(
 
                         let pack = HeartbeatHealthPacket::create(
                             &mut builder,
-                            &heartbeat_generated::heartbeat::HeartbeatHealthPacketArgs {
+                            &HeartbeatHealthPacketArgs {
                                 system_status: status_enum,
-                                auto: auto,
-                                guided: guided,
-                                manual: manual,
-                                armed: armed,
+                                auto,
+                                guided,
+                                manual,
+                                armed,
                             },
                         );
-                        match data.autopilot {
-                            mavlink::ardupilotmega::MavAutopilot::MAV_AUTOPILOT_GENERIC => {}
-                            _ => {}
-                        }
                         builder.finish(pack, None);
+
                         let payload = builder.finished_data().to_vec();
-                        heartbeat_pub.put(payload).await.ok();
+                        builder.reset();
+
+                        let _ = heartbeat_pub.put(payload).await;
                     }
-                    // MavMessage::MCU_STATUS(data) => { /* Id: 11039 — ArduPilot-specific */ }
-                    // MavMessage::MEMINFO(data) => { /* Id: 152 */ }
-                    MavMessage::MISSION_CURRENT(data) => {
-                        data.seq;
-                    }
-                    // MavMessage::NAV_CONTROLLER_OUTPUT(data) => {}
-                    // MavMessage::POWER_STATUS(data) => {}
-                    // MavMessage::RAW_IMU(data) => { /* Id: 27 */ }
-                    MavMessage::RC_CHANNELS(data) => {}
-                    // MavMessage::SCALED_IMU2(data) => { /* Id: 116 */ }
-                    // MavMessage::SCALED_PRESSURE(data) => { /* Id: 29 */ }
-                    MavMessage::SERVO_OUTPUT_RAW(data) => {}
-                    MavMessage::SYSTEM_TIME(data) => { /* Id: 2 */ }
-                    // MavMessage::SYS_STATUS(data) => {}
-                    // MavMessage::TERRAIN_REPORT(data) => {}
-                    // MavMessage::VFR_HUD(data) => { /* Id: 74 */ }
-                    // MavMessage::VIBRATION(data) => { /* Id: 241 */ }
-                    _ => {
-                        // Discover other messages
-                        // println!(
-                        //     "Header ==== Component Id: {}, System Id : {}, Sequence Number: {}",
-                        //     header.component_id, header.system_id, header.sequence
-                        // );
-                        // println!(
-                        //     "Message ==== Name: {}, Id: {}, ",
-                        //     msg.message_name(),
-                        //     msg.message_id()
-                        // );
-                    }
+
+                    _ => {}
                 }
             }
 
             Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                eprintln!("telemetry subscriber lagged, dropped {n} messages");
+                // Changing this to a simple log so a temporary spike doesn't spam your stderr channels
+                println!("Telemetry packet parser lagged behind by {} frames.", n);
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                break; // sender dropped, shut down
+                break;
             }
         }
+
+        // Final safety net reset
         builder.reset();
     }
 }

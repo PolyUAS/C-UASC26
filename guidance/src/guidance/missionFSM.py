@@ -1,6 +1,7 @@
 import asyncio
 import math
 import os
+import time
 from abc import ABC, ABCMeta, abstractmethod
 from os import environ
 
@@ -17,6 +18,8 @@ import guidance.generated.waypoint.Waypoint as WaypointFB
 from guidance.generated.Geofence.Coords import Coords
 from guidance.generated.Geofence.GeofencePacket import GeofencePacket
 from guidance.geo_utils import WaypointStruct
+
+_POSITION_SUB_KEEPALIVE = None  # module level
 
 
 class AbstractFSMMetaclass(ABCMeta, type(StateMachine)):
@@ -49,6 +52,12 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
         self.position_sub = session.declare_subscriber(
             "control/telem/gl_pos_int", self._set_pos
         )
+        _POSITION_SUB_KEEPALIVE = self.position_sub  # prevent GC
+
+        # self._pos_subscriber_for_goto = session.declare_subscriber(
+        #     "control/telem/gl_pos_int"
+        # )
+
         self.geofence_queryier = session.declare_querier("control/query/geofence")
 
         payload_input_sub_str = "control/in/squidarm"
@@ -62,11 +71,26 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
     def _reset_home(self, wp: WaypointStruct):
         self.home = wp
 
-    def _set_pos(self, s: Sample):
+    # def _recv_pos(self) -> WaypointStruct | None:
+    #     try:
+    #         sample = self._pos_subscriber_for_goto.recv()
+    #         if sample is not None:
+    #             payload = sample.payload.to_bytes()
+    #             pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
+    #             return WaypointStruct(pos.Lat(), pos.Lon(), pos.AltAboveHome())
+    #     except Exception:
+    #         pass
+    #     return None
+
+    def _set_pos(self, s: Sample | None):
+        # print(f"_set_pos called from {threading.current_thread().name}", flush=True)
         if s is not None:
             payload = s.payload.to_bytes()
             pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
             self.pos = WaypointStruct(pos.Lat(), pos.Lon(), pos.AltAboveHome())
+            # print(f"_set_pos done: {self.pos.lat},{self.pos.lon}", flush=True)
+        else:
+            print("POSITIITidsfhjksadhfkldshfgiusad  GOTTA NONE")
 
     def set_geofence(self, packet: GeofencePacket):
         coords_len = packet.PointsLength()
@@ -130,10 +154,13 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
             try:
                 async with asyncio.timeout(timeout):
                     while d > a_rad:
+                        print(f"SUB VALID: {self.position_sub}")
                         # print(f"dist: {d}, a: {a_rad}")
 
                         d = self.pos.distance_to(t)
-                        print(f"GUIDANCE: dist to target = {d}")
+                        print(
+                            f"GUIDANCE: dist to target = {d} (pos = {self.pos}, target = {t})"
+                        )
                         await asyncio.sleep(0.01)
             except TimeoutError:
                 return False  # overall timeout → mission failure

@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // shutdown signal
     let running = Arc::new(AtomicBool::new(true));
 
-    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(1024);
+    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(2048);
     // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
     // Each subsystem takes bc_tx.subscribe()
 
@@ -190,17 +190,15 @@ fn create_mavlink_broadcast_thread(
     let broadcaster = bc_tx.clone();
     let vehicle_local = vehicle.clone();
 
-    // Receiver task
     tokio::spawn(async move {
+        let mut last_pos_publish = std::time::Instant::now();
+
         while active.load(Ordering::Acquire) {
-            if let Some(msg_tuple) = vehicle_local.recv().await.ok() {
+            if let Ok(msg_tuple) = vehicle_local.recv().await {
                 let header = msg_tuple.0;
-
-                broadcaster.send(msg_tuple).ok();
-
-                // ik what im doing here
                 fc_header_utils::set_headers_safely(header.system_id, header.component_id);
             }
+            tokio::task::yield_now().await;
         }
     });
 }

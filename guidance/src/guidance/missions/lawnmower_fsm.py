@@ -101,11 +101,10 @@ class LAWNMOWER_FSM(AbstractFSMBaseClass):
                 timeout=60.0,
             )
 
-            await asyncio.sleep(8.0)
+            await asyncio.sleep(1.0)
 
             if not success:
                 print("failed to reach sweep waypoint")
-                break
 
     async def on_enter_RETURN_TO_HOME(self) -> None:
         # await self.navigate_waypoint(self.home, 0.5)
