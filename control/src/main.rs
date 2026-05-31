@@ -63,8 +63,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let vehicle = Arc::new(mavconn);
 
-    request_global_position_int(&vehicle).await;
-
     // let camera = A8Mini::connect()
     //     .await
     //     .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
@@ -75,7 +73,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // shutdown signal
     let running = Arc::new(AtomicBool::new(true));
 
-    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(2048);
+    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(1024);
     // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
     // Each subsystem takes bc_tx.subscribe()
 
@@ -131,8 +129,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _geofence_query =
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
 
-    get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
-    let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
+    // get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
+    // let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
 
     // Wait for Ctrl+C
     ctrlc::set_handler(move || {
@@ -197,6 +195,8 @@ fn create_mavlink_broadcast_thread(
             if let Ok(msg_tuple) = vehicle_local.recv().await {
                 let header = msg_tuple.0;
                 fc_header_utils::set_headers_safely(header.system_id, header.component_id);
+
+                let _ = broadcaster.send(msg_tuple);
             }
             tokio::task::yield_now().await;
         }

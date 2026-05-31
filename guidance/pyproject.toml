@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "guidance - Python Zenoh Node"
 requires-python = ">=3.12"
 dependencies = [
- "eclipse-zenoh>=1.7.1",
+ "eclipse-zenoh>=1.9",
  "flatbuffers>=25.12.19",
  "pyproj>=3.7.2",
  "python-statemachine>=3.0.0",

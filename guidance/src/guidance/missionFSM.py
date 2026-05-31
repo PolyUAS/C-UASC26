@@ -88,7 +88,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
             payload = s.payload.to_bytes()
             pos = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
             self.pos = WaypointStruct(pos.Lat(), pos.Lon(), pos.AltAboveHome())
-            # print(f"_set_pos done: {self.pos.lat},{self.pos.lon}", flush=True)
+            print(f"_set_pos done: {self.pos.lat},{self.pos.lon}", flush=True)
         else:
             print("POSITIITidsfhjksadhfkldshfgiusad  GOTTA NONE")
 

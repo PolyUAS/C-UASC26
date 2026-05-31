@@ -20,7 +20,7 @@ pub async fn telemetry_loop<'a>(
     running: &Arc<AtomicBool>,
 ) {
     // Start with a healthy capacity to minimize internal re-allocations
-    let mut builder = FlatBufferBuilder::with_capacity(4096);
+    let mut builder = FlatBufferBuilder::with_capacity(1024);
 
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
