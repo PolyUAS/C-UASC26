@@ -59,11 +59,7 @@
               "scouting": {
                 "multicast": {
                   "enabled": true,
-                  "listen": true,
-                  "autoconnect": {
-                    "router": [],
-                    "peer": ["router", "peer"]
-                  }
+                  "listen": true
                 }
               }
             }

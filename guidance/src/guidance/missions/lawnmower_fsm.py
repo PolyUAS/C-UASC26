@@ -1,14 +1,12 @@
-import asyncio
 import os
 import sys
-from enum import Enum
+import time
 
 from statemachine import State
 from statemachine.transition_list import TransitionList
 from zenoh import Session
 
 from guidance.generated.Geofence import Coords as GuidanceCoordsModule
-from guidance.generated.Geofence.GeofencePacket import GeofencePacket
 from guidance.geo_utils import WaypointStruct
 from guidance.lawnmower import generate_lawnmower_sweep
 from guidance.missionFSM import AbstractFSMBaseClass
@@ -17,64 +15,82 @@ sys.modules.setdefault("Geofence.Coords", GuidanceCoordsModule)
 
 TEST_SPEED = 0.50  # m/s
 TAKEOFF_ALT_MM = 12_000.0
-FALLBACK_FENCE_FILE = "/home/mvela/ardupilot/fence-items.txt"
 
 
 class LAWNMOWER_FSM(AbstractFSMBaseClass):
+    # ------------------------------------------------------------------
     # States
-    HOPPING = State()
+    # ------------------------------------------------------------------
     INIT = State(initial=True)
     LAUNCH = State()
-    COMPLETE = State(final=True)
-    LAND = State()
+    HOPPING = State()
     RETURN_TO_HOME = State()
+    LAND = State()
+    COMPLETE = State(final=True)
 
+    # ------------------------------------------------------------------
     # Transitions
+    # ------------------------------------------------------------------
     on_reinit: TransitionList = INIT.to(INIT)
     on_go: TransitionList = INIT.to(LAUNCH)
+    begin_hop: TransitionList = LAUNCH.to(HOPPING)
+    end_hop: TransitionList = HOPPING.to(RETURN_TO_HOME)
     on_return: TransitionList = RETURN_TO_HOME.to(LAND)
     on_finish: TransitionList = LAND.to(COMPLETE)
 
-    begin_hop: TransitionList = LAUNCH.to(HOPPING)
-    end_hop: TransitionList = HOPPING.to(RETURN_TO_HOME)
-
-    def __init__(
-        self,
-        session: Session,
-        home: WaypointStruct,
-    ):
+    def __init__(self, session: Session, home: WaypointStruct):
         super().__init__(session, home)
-        self.pos = home
 
-    async def run(self) -> None:
-        await self.activate_initial_state()
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
 
-        await self.on_go()  # INIT -> LAUNCH
-        await self.begin_hop()  # LAUNCH -> HOPPING
-        await self.end_hop()  # HOPPING -> RETURN_TO_HOME
-        await self.on_return()  # RETURN_TO_HOME -> LAND
-        await self.on_finish()  # LAND -> COMPLETE
+    def run(self) -> None:
+        self.on_go()  # INIT -> LAUNCH
+        self.begin_hop()  # LAUNCH -> HOPPING
+        self.end_hop()  # HOPPING -> RETURN_TO_HOME
+        self.on_return()  # RETURN_TO_HOME -> LAND
+        self.on_finish()  # LAND -> COMPLETE
 
-    async def on_enter_INIT(self) -> None:
+    # ------------------------------------------------------------------
+    # State handlers
+    # ------------------------------------------------------------------
 
+    def on_enter_INIT(self) -> None:
         print("requesting geofence from control/query/geofence")
         self.update_geofence()
         print(f"geofence points: {len(self.geofence)}")
 
-    async def on_enter_LAUNCH(self) -> None:
+    def on_enter_LAUNCH(self) -> None:
         print("waiting to be at takeoff alt")
         while self.pos.alt < TAKEOFF_ALT_MM:
             print(f"alt (mm): {self.pos.alt}")
-            await asyncio.sleep(0.300)
+            time.sleep(0.300)
 
-    async def on_enter_HOPPING(self) -> None:
+    def on_enter_HOPPING(self) -> None:
+        self._run_object_localization_lawnmower()
 
-        await self._run_object_localization_lawnmower()
+    def on_enter_RETURN_TO_HOME(self) -> None:
+        # self.navigate_waypoint(self.home, 0.5)
+        pass
 
-    async def _run_object_localization_lawnmower(self) -> None:
+    def on_enter_LAND(self) -> None:
+        print("LAND")
+        # ground = WaypointStruct(
+        #     self.home.lat,
+        #     self.home.lon,
+        #     self.home.alt + 500.0,  # half a meter agl
+        # )
+        # self.navigate_waypoint(ground, 0.4, speed=TEST_SPEED)
+
+    # ------------------------------------------------------------------
+    # Mission logic
+    # ------------------------------------------------------------------
+
+    def _run_object_localization_lawnmower(self) -> None:
         print("starting object-localization lawnmower sweep")
-
         print(f"geofence = {self.geofence}")
+
         if len(self.geofence) < 3:
             print("no valid geofence was received; skipping lawnmower sweep")
             return
@@ -94,27 +110,18 @@ class LAWNMOWER_FSM(AbstractFSMBaseClass):
 
         for i, waypoint in enumerate(sweep_points):
             print(f"going to sweep waypoint {i + 1}/{len(sweep_points)}")
+            print(
+                f"→ SENT WAYPOINT {i + 1}: lat={waypoint.lat}, "
+                f"lon={waypoint.lon}, alt={waypoint.alt}"
+            )
 
-            success = await self.navigate_waypoint(
+            success = self.navigate_waypoint(
                 waypoint,
                 a_rad=2.0,
                 timeout=60.0,
             )
 
-            await asyncio.sleep(1.0)
+            time.sleep(1.0)
 
             if not success:
                 print("failed to reach sweep waypoint")
-
-    async def on_enter_RETURN_TO_HOME(self) -> None:
-        # await self.navigate_waypoint(self.home, 0.5)
-        pass
-
-    async def on_enter_LAND(self) -> None:
-        print("LAND")
-        # ground = WaypointStruct(
-        #     self.home.lat,
-        #     self.home.lon,
-        #     self.home.alt + 500.0,  # half a meter agl
-        # )
-        # await self.navigate_waypoint(ground, 0.4, speed=TEST_SPEED)

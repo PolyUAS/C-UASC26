@@ -4,9 +4,9 @@ version = "0.1.0"
 description = "guidance - Python Zenoh Node"
 requires-python = ">=3.12"
 dependencies = [
- "eclipse-zenoh>=1.9",
+ "eclipse-zenoh<=1.7",
  "flatbuffers>=25.12.19",
- "pyproj>=3.7.2",
+
  "python-statemachine>=3.0.0",
 ]
 
@@ -24,10 +24,7 @@ viewer = [
 # the function must be visible (i.e. imported or defined) in __init__.py
 [project.scripts]
 guidance = "guidance:main"
-guidance-bridge = "guidance.bridge_main:main"
-guidance-publish-command = "guidance.command_publisher:main"
-guidance-ack-monitor = "guidance.ack_monitor:main"
-guidance-mujoco-telemetry = "guidance.mujoco_telemetry_main:main"
+gigasniffer = "guidance:gigasniffer"
 
 [build-system]
 requires = ["uv_build>=0.9.0,<0.10.0"]

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import time
 from enum import Enum
 
 from statemachine import State
@@ -72,6 +73,7 @@ class BAD_FSM(AbstractFSMBaseClass):
         if self.mission_mode == MissionMode.OBJECT_LOCALIZATION:
             print("requesting geofence from control/query/geofence")
             self.update_geofence()
+            time.sleep(1)
             print(f"geofence points: {len(self.geofence)}")
 
     async def on_enter_LAUNCH(self) -> None:

@@ -1,8 +1,6 @@
 import math
 from typing import Self
 
-import pyproj
-
 
 class WaypointStruct:
     """
@@ -43,18 +41,19 @@ class WaypointStruct:
 
 
 def metric_dist(w1: WaypointStruct, w2: WaypointStruct) -> float:
-    """
-    Given coord params, returns distance in meters btw/ pts.
-    """
-
     lat1, lon1, alt1 = w1.to_deg()
     lat2, lon2, alt2 = w2.to_deg()
 
-    dalt_m = (alt2 - alt1) / 1000.0  # mm to m
-    geod = pyproj.Geod(ellps="WGS84")
+    R = 6_371_000.0  # Earth radius in metres
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
 
-    az12, az21, distance_m = geod.inv(lon1, lat1, lon2, lat2)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    )
+    distance_m = R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-    # print(f"flat dist: {distance_m}")
-
+    dalt_m = (alt2 - alt1) / 1000.0
     return round(math.sqrt(distance_m**2 + dalt_m**2), 3)

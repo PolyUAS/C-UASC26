@@ -8,8 +8,8 @@ from time import sleep
 import flatbuffers
 import zenoh
 
-from guidance.generated.Position.GlobalPositionInt import GlobalPositionInt
-from guidance.generated.waypoint import FrameType, Waypoint
+import guidance.generated.Control_Squid.Squidarm as SquidarmFB
+import guidance.generated.Position.GlobalPositionInt as GlobalPositionInt
 from guidance.geo_utils import WaypointStruct
 from guidance.missions import BAD_FSM
 from guidance.missions.lawnmower_fsm import LAWNMOWER_FSM
@@ -29,7 +29,7 @@ def main():
 
     b = sample.payload.to_bytes()
 
-    packet = GlobalPositionInt.GetRootAs(b)
+    packet = GlobalPositionInt.GlobalPositionInt.GetRootAs(b)
 
     home = WaypointStruct(packet.Lat(), packet.Lon(), packet.AltAboveHome() * 1.0)
 
@@ -67,9 +67,37 @@ def main():
 
     print("running fsm")
 
-    asyncio.run(fsm.run())
+    fsm.run()
 
     session.close()
+
+
+def gigasniffer():
+    import time
+
+    import zenoh
+
+    config = zenoh.Config.from_env()
+
+    with zenoh.open(config) as session:
+
+        def callback(sample):
+            print(
+                "RX:", sample.key_expr, bytes(sample.payload).decode(errors="replace")
+            )
+            if sample is None:
+                return
+            if sample.key_expr == "control/telem/gl_pos_int":
+                payload = bytes(sample.payload.to_bytes())
+                pos_fb = GlobalPositionInt.GlobalPositionInt.GetRootAs(payload)
+                pos = WaypointStruct(pos_fb.Lat(), pos_fb.Lon(), pos_fb.AltAboveHome())
+                print(f"pos got: {pos}")
+
+        sub = session.declare_subscriber("**", callback)
+
+        print("listening...")
+        while True:
+            time.sleep(1)
 
 
 if __name__ == "__main__":

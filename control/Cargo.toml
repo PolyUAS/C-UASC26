@@ -15,8 +15,8 @@ mavlink = { version = "0.17.1", features = ["tokio-1", "common", "ardupilotmega"
 tokio = { version = "1.49.0", features = ["full"] }
 
 
-zenoh = {version = ">=1.7.2", features = ["shared-memory"]}
-zenoh-ext = ">=1.7.2"
+zenoh = {version = "<=1.7", features = ["shared-memory"]}
+zenoh-ext = "<=1.7"
 
 [[bin]]
 name = "control"

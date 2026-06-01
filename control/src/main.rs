@@ -74,6 +74,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let running = Arc::new(AtomicBool::new(true));
 
     let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(1024);
+
     // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
     // Each subsystem takes bc_tx.subscribe()
 
@@ -82,6 +83,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Setup publisher
     let position_pub = session
         .declare_publisher("control/telem/gl_pos_int")
+        .express(true)
+        .priority(zenoh::qos::Priority::RealTime)
         .await?;
 
     let attitude_pub = session.declare_publisher("control/telem/attitude").await?;
@@ -107,18 +110,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let heartbeat_handle = heartbeat::create_heartbeat_advertiser(running.clone(), vehicle.clone());
 
+    let tsession = session.clone();
+
     let telem_handle = tokio::spawn({
         let mut telem_rx = bc_tx.subscribe(); // cheap, can move in directly
         async move {
-            telemetry_loop(
-                &mut telem_rx,
-                &position_pub,
-                &attitude_pub,
-                &battery_publisher,
-                &heartbeat_publisher,
-                &running_telem,
-            )
-            .await;
+            telemetry_loop(&mut telem_rx, &tsession, &running_telem).await;
         }
     });
 
@@ -167,7 +164,7 @@ async fn request_global_position_int(
         command: MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
         confirmation: 0,
         param1: 33.0,      // GLOBAL_POSITION_INT
-        param2: 200_000.0, // 5 Hz in microseconds
+        param2: 100_000.0, // 5 Hz in microseconds
         param3: 0.0,
         param4: 0.0,
         param5: 0.0,

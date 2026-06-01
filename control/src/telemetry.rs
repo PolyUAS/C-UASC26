@@ -5,6 +5,7 @@ use mavlink::ardupilotmega::{MavMessage, MavModeFlag};
 
 use tokio::sync::broadcast::Receiver;
 use zenoh::pubsub::Publisher;
+use zenoh::session;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,12 +14,25 @@ pub static IS_GUIDED_ENABLED: AtomicBool = AtomicBool::new(false);
 
 pub async fn telemetry_loop<'a>(
     vehicle: &mut Receiver<(MavHeader, MavMessage)>,
-    position_pub: &Publisher<'a>,
-    attitude_pub: &Publisher<'a>,
-    battery_pub: &Publisher<'a>,
-    heartbeat_pub: &Publisher<'a>,
+    session: &zenoh::Session,
     running: &Arc<AtomicBool>,
 ) {
+    let position_pub = session
+        .declare_publisher("control/telem/gl_pos_int")
+        .express(true)
+        .priority(zenoh::qos::Priority::RealTime)
+        .await
+        .expect("Failed to declare position publisher");
+
+    let attitude_pub = session
+        .declare_publisher("control/telem/attitude")
+        .await
+        .expect("Failed to declare attitude publisher");
+
+    let heartbeat_pub = session
+        .declare_publisher("control/health/heartbeat")
+        .await
+        .expect("Failed to declare heartbeat publisher");
     // Start with a healthy capacity to minimize internal re-allocations
     let mut builder = FlatBufferBuilder::with_capacity(1024);
 
@@ -56,23 +70,7 @@ pub async fn telemetry_loop<'a>(
                             GlobalPositionInt, GlobalPositionIntArgs,
                         };
 
-                        static LAST_POS_PUBLISH: std::sync::atomic::AtomicU64 =
-                            std::sync::atomic::AtomicU64::new(0);
-
-                        let now = std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis() as u64;
-
-                        let last = LAST_POS_PUBLISH.load(Ordering::Relaxed);
-                        if now - last < 200 {
-                            // 5Hz max
-                            continue; // skip this message
-                        }
-                        LAST_POS_PUBLISH.store(now, Ordering::Relaxed);
                         // println!("Publishing position: lat={} lon={}", data.lat, data.lon);
-
-                        builder.reset();
 
                         let root = GlobalPositionInt::create(
                             &mut builder,
@@ -93,6 +91,10 @@ pub async fn telemetry_loop<'a>(
                         builder.reset();
 
                         let _ = position_pub.put(payload).await;
+                        println!(
+                            "CONTROL: PUB CURRENT POS!!!! pos: lat: {}, lon: {}, alt: {}",
+                            data.lat, data.lon, data.relative_alt
+                        );
                     }
 
                     MavMessage::HEARTBEAT(data) => {
@@ -107,11 +109,7 @@ pub async fn telemetry_loop<'a>(
                         let manual = mode.contains(MavModeFlag::MAV_MODE_FLAG_MANUAL_INPUT_ENABLED);
                         let armed = mode.contains(MavModeFlag::MAV_MODE_FLAG_SAFETY_ARMED);
 
-                        if guided {
-                            IS_GUIDED_ENABLED.store(true, Ordering::Release);
-                        } else {
-                            IS_GUIDED_ENABLED.store(false, Ordering::Release);
-                        }
+                        IS_GUIDED_ENABLED.store(guided, Ordering::Release);
 
                         let status_enum = match data.system_status {
                             mavlink::ardupilotmega::MavState::MAV_STATE_ACTIVE => {
@@ -170,6 +168,8 @@ pub async fn telemetry_loop<'a>(
                 println!("Telemetry packet parser lagged behind by {} frames.", n);
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                println!("CRITICAL, bc_tx CLOSED.");
+
                 break;
             }
         }
