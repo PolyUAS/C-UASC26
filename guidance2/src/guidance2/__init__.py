@@ -11,9 +11,15 @@ def main():
     except zenoh.ZError:
         session = zenoh.open(zenoh.Config())
 
-    pub = session.declare_publisher("python/helloworld")
+    sub = session.declare_subscriber("control/telem/gl_pos_int")
 
-    sub = session.declare_subscriber("rust/helloworld")
+    sample = sub.recv()
+
+    b = sample.payload.to_bytes()
+
+    packet = GlobalPositionInt.GlobalPositionInt.GetRootAs(b)
+
+    home = WaypointStruct(packet.Lat(), packet.Lon(), packet.AltAboveHome() * 1.0)
 
     # Wait for subscribers to be ready
     sleep(0.5)
