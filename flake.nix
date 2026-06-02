@@ -10,7 +10,7 @@
     vision.url = ./vision;
 
     control.url = ./control;
-    guidance.url = ./guidance;
+    guidance2.url = ./guidance2;
     navigation.url = ./navigation;
 
   };
@@ -90,7 +90,7 @@
             zenohd = inputs.zenohd.packages.${system}.default;
 
             # Flight stack modules
-            guidance = inputs.guidance.packages.${system}.default;
+            guidance2 = inputs.guidance2.packages.${system}.default;
             navigation = inputs.navigation.packages.${system}.default;
 
             # Launcher: Spins up all with shared config
@@ -125,7 +125,7 @@
                 zenohd
 
                 control
-                guidance
+                guidance2
                 # navigation
                 # vision
                 #
@@ -151,14 +151,14 @@
                 control &
                 CONTROL_PID=$!
 
-                sleep 1  # give control time to connect and start publishing before guidance subscribes
+                sleep 1  # give control time to connect and start publishing before guidance2 subscribes
 
-                guidance &
-                GUIDANCE_PID=$!
+                guidance2 &
+                guidance2_PID=$!
 
-                trap 'kill $GUIDANCE_PID $CONTROL_PID 2>/dev/null && jetson_reset_power' EXIT INT TERM
+                trap 'kill $guidance2_PID $CONTROL_PID 2>/dev/null && jetson_reset_power' EXIT INT TERM
 
-                wait $CONTROL_PID $GUIDANCE_PID
+                wait $CONTROL_PID $guidance2_PID
 
               '';
             };
@@ -197,7 +197,7 @@
                 zenohd
 
                 control
-                guidance
+                guidance2
                 # navigation
                 # vision
                 #
@@ -223,14 +223,14 @@
                 control &
                 CONTROL_PID=$!
 
-                sleep 1  # give control time to connect and start publishing before guidance subscribes
+                sleep 1  # give control time to connect and start publishing before guidance2 subscribes
 
-                guidance &
-                GUIDANCE_PID=$!
+                guidance2 &
+                guidance2_PID=$!
 
-                trap 'kill $GUIDANCE_PID $CONTROL_PID 2>/dev/null' EXIT INT TERM
+                trap 'kill $guidance2_PID $CONTROL_PID 2>/dev/null' EXIT INT TERM
 
-                wait $CONTROL_PID $GUIDANCE_PID
+                wait $CONTROL_PID $guidance2_PID
 
               '';
             };
