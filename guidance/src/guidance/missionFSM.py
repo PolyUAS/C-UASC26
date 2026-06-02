@@ -168,6 +168,7 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
                 temp_sub.undeclare()
                 return False
             s = temp_sub.try_recv()
+            # print(f"this is s past the false {s}")
 
             if s is not None:
                 p = bytes(s.payload.to_bytes())
@@ -181,9 +182,9 @@ class AbstractFSMBaseClass(ABC, StateMachine, metaclass=AbstractFSMMetaclass):
             d = self.pos.distance_to(t)
 
             if time.time() - last_print > 0.5:
-                print(
-                    f"GUIDANCE: dist to target = {d:.2f}m (pos={self.pos}, target={t})"
-                )
+                # print(
+                #     f"GUIDANCE: dist to target = {d:.2f}m (pos={self.pos}, target={t})"
+                # )
                 last_print = time.time()
 
             time.sleep(0.05)

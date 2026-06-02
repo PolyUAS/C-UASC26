@@ -68,9 +68,12 @@ class LAWNMOWER_FSM(AbstractFSMBaseClass):
             time.sleep(0.300)
 
     def on_enter_HOPPING(self) -> None:
+        print("starting lawnmower")
         self._run_object_localization_lawnmower()
 
     def on_enter_RETURN_TO_HOME(self) -> None:
+        print("returning to home")
+        exit(1)
         # self.navigate_waypoint(self.home, 0.5)
         pass
 

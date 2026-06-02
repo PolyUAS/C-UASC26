@@ -91,10 +91,10 @@ pub async fn telemetry_loop<'a>(
                         builder.reset();
 
                         let _ = position_pub.put(payload).await;
-                        println!(
-                            "CONTROL: PUB CURRENT POS!!!! pos: lat: {}, lon: {}, alt: {}",
-                            data.lat, data.lon, data.relative_alt
-                        );
+                        // println!(
+                        //     "CONTROL: PUB CURRENT POS!!!! pos: lat: {}, lon: {}, alt: {}",
+                        //     data.lat, data.lon, data.relative_alt
+                        // );
                     }
 
                     MavMessage::HEARTBEAT(data) => {
