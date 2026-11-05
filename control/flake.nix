@@ -31,6 +31,8 @@
           rustfmt
           pre-commit
           rustPackages.clippy
+          pkg-config # openssl-sys (a8mini-camera-rs -> reqwest -> native-tls) finds openssl via pkg-config
+          openssl
         ];
         RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
       };
@@ -51,7 +53,8 @@
         naersk-lib.buildPackage {
           src = ./.;
           pname = "control";
-          nativeBuildInputs = [ pkgs.git ];
+          nativeBuildInputs = [ pkgs.git pkgs.pkg-config ];
+          buildInputs = [ pkgs.openssl ];
         };
     };
 
