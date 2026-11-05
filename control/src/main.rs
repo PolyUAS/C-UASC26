@@ -64,20 +64,37 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let vehicle = Arc::new(mavconn);
 
-    request_global_position_int(&vehicle).await;
+    // shutdown signal; the Ctrl-C/SIGINT handler is installed first so a clean
+    // shutdown also works while control is still waiting for the FC
+    let running = Arc::new(AtomicBool::new(true));
+    {
+        let running = running.clone();
+        ctrlc::set_handler(move || {
+            running.store(false, Ordering::Release);
+        })
+        .expect("Error setting Ctrl-C handler");
+    }
 
+    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(128);
+    // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
+    // Each subsystem takes bc_tx.subscribe()
+    // It starts first: it learns the FC identity that every later sender targets.
+    create_mavlink_broadcast_thread(&running, bc_tx.clone(), &vehicle);
+
+    tokio::spawn({
+        let vehicle = vehicle.clone();
+        async move {
+            let fc = fc_header_utils::wait_for_fc("SET_MESSAGE_INTERVAL").await;
+            if let Err(e) = request_global_position_int(&vehicle, fc).await {
+                eprintln!("control: SET_MESSAGE_INTERVAL(GLOBAL_POSITION_INT) send failed: {e}");
+            }
+        }
+    });
 
     //let camera = A8Mini::connect()
     //    .await
     //    .expect("CONTROL: FAIELD TO CONNECT TO CAMERA");
     //let camera = Arc::new(camera);
-
-    // shutdown signal
-    let running = Arc::new(AtomicBool::new(true));
-
-    let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(128);
-    // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
-    // Each subsystem takes bc_tx.subscribe()
 
     println!("Connected to Mavlink on {:?}", mavlink_conn_str);
 
@@ -123,21 +140,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         }
     });
 
-    create_mavlink_broadcast_thread(&running, bc_tx.clone(), &vehicle);
-
     let geofence_vehicle = vehicle.clone();
 
     let _geofence_query =
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
 
-    get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
+    // mission download waits for the FC identity; run it in the background
+    tokio::spawn({
+        let vehicle = vehicle.clone();
+        let mut rx = bc_tx.subscribe();
+        async move {
+            get_missions(&vehicle, &mut rx).await;
+        }
+    });
     let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
-
-    // Wait for Ctrl+C
-    ctrlc::set_handler(move || {
-        running.store(false, Ordering::Release);
-    })
-    .expect("Error setting Ctrl-C handler");
 
     // Join threads
 
@@ -153,8 +169,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
+/// MAVLink message id of GLOBAL_POSITION_INT.
+const GPI_MSG_ID: f32 = 33.0;
+/// Requested GLOBAL_POSITION_INT interval, us (5 Hz). goto::GPI_MAX_AGE (1 s) assumes this.
+const GPI_INTERVAL_US: f32 = 200_000.0;
+
 async fn request_global_position_int(
     vehicle: &SharedAsyncMavConn,
+    fc: fc_header_utils::FcIdentity,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let header = MavHeader {
         system_id: 255, // your GCS id
@@ -163,12 +185,12 @@ async fn request_global_position_int(
     };
 
     let msg = MavMessage::COMMAND_LONG(COMMAND_LONG_DATA {
-        target_system: 1,
-        target_component: 1,
+        target_system: fc.sysid,
+        target_component: fc.compid,
         command: MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
         confirmation: 0,
-        param1: 33.0,      // GLOBAL_POSITION_INT
-        param2: 200_000.0, // 5 Hz in microseconds
+        param1: GPI_MSG_ID,
+        param2: GPI_INTERVAL_US,
         param3: 0.0,
         param4: 0.0,
         param5: 0.0,
@@ -193,12 +215,10 @@ fn create_mavlink_broadcast_thread(
     tokio::spawn(async move {
         while active.load(Ordering::Acquire) {
             if let Some(msg_tuple) = vehicle_local.recv().await.ok() {
-                let header = msg_tuple.0;
+                // learn the FC identity / latest FC position before anyone sees the message
+                fc_header_utils::observe(&msg_tuple.0, &msg_tuple.1);
 
                 broadcaster.send(msg_tuple).ok();
-
-                // ik what im doing here
-                fc_header_utils::set_headers_safely(header.system_id, header.component_id);
             }
         }
     });

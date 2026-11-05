@@ -35,7 +35,15 @@ pub async fn telemetry_loop<'a>(
     let mut builder = FlatBufferBuilder::new();
     while running.load(Ordering::Acquire) {
         match vehicle.recv().await {
-            Ok((_header, msg)) => {
+            Ok((header, msg)) => {
+                // republish only the FC's own telemetry (not GCS, other vehicles, gimbal heartbeats)
+                if !crate::fc_header_utils::should_republish(
+                    crate::fc_header_utils::fc(),
+                    &header,
+                    &msg,
+                ) {
+                    continue;
+                }
                 // println!("RECV!");
                 // println!("\n{msg:?}");
                 match msg {

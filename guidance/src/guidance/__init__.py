@@ -26,6 +26,8 @@ def main():
     sleep(0.5)
 
     sample = sub.recv()
+    # only the first sample is needed: undeclare so its FIFO is not filled and never drained
+    sub.undeclare()
 
     b = sample.payload.to_bytes()
 

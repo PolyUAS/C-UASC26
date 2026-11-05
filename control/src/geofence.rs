@@ -1,5 +1,6 @@
 use crate::SharedAsyncMavConn;
 use crate::fc_header_utils;
+use crate::receiver_utils::recv_message_within;
 use flatbuffers::{self, FlatBufferBuilder};
 
 use mavlink::ardupilotmega::PARAM_REQUEST_READ_DATA;
@@ -28,6 +29,13 @@ use crate::geofence_generated::geofence::Coords;
 use crate::geofence_generated::geofence::GeofencePacket;
 use crate::geofence_generated::geofence::GeofencePacketArgs;
 
+/// True if a MAVLink param_id (up to 16 bytes, NUL-padded, no NUL if exactly 16 long)
+/// is exactly `name`: the name bytes match and are followed by a NUL or the end of the id.
+pub fn param_id_is(id: &[u8], name: &str) -> bool {
+    let n = name.as_bytes();
+    n.len() <= id.len() && id[..n.len()] == *n && id.get(n.len()).is_none_or(|&b| b == 0)
+}
+
 pub async fn get_geofence(
     vehicle: &SharedAsyncMavConn,
     bc_rx: &mut Receiver<(MavHeader, MavMessage)>,
@@ -38,7 +46,8 @@ pub async fn get_geofence(
     let mut name_as_bytes = [0u8; 16];
     name_as_bytes[..name.len()].copy_from_slice(name.as_bytes());
 
-    let (sys, comp) = fc_header_utils::wait_for_headers().await;
+    let fc = fc_header_utils::wait_for_fc("geofence query").await;
+    let (sys, comp) = (fc.sysid, fc.compid);
 
     vehicle
         .send_default(&MavMessage::PARAM_REQUEST_READ(PARAM_REQUEST_READ_DATA {
@@ -49,21 +58,17 @@ pub async fn get_geofence(
         }))
         .await?;
 
-    let mut total_points: u8 = 0;
     let timeout = Duration::from_secs(2);
 
-    let start = std::time::Instant::now();
-    while start.elapsed() < timeout {
-        if let Ok((_, msg)) = bc_rx.recv().await {
-            if let MavMessage::PARAM_VALUE(pv) = msg {
-                if pv.param_id[..=11] == *b"FENCE_TOTAL" {
-                    total_points = pv.param_value as u8;
-                    break;
-                }
-            }
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
+    // bounded wait (the old loop could block forever in recv and slept between messages)
+    let total_points: u8 = match recv_message_within(timeout, bc_rx, |m| {
+        matches!(m, MavMessage::PARAM_VALUE(pv) if param_id_is(&pv.param_id[..], name))
+    })
+    .await
+    {
+        Ok(MavMessage::PARAM_VALUE(pv)) => pv.param_value as u8,
+        _ => 0,
+    };
 
     if total_points == 0 {
         return Ok(Vec::new());
@@ -82,21 +87,17 @@ pub async fn get_geofence(
             }))
             .await?;
 
-        let start = std::time::Instant::now();
-        while start.elapsed() < Duration::from_millis(500) {
-            if let Ok((_, msg)) = bc_rx.recv().await {
-                if let MavMessage::FENCE_POINT(point) = msg {
-                    if point.idx == idx as u8 {
-                        println!(
-                            "Fence point {}: lat={}, lng={}",
-                            point.idx, point.lat, point.lng
-                        );
-                        points.push(point);
-                        break;
-                    }
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(20)).await;
+        if let Ok(MavMessage::FENCE_POINT(point)) =
+            recv_message_within(Duration::from_millis(500), bc_rx, |m| {
+                matches!(m, MavMessage::FENCE_POINT(p) if p.idx == idx)
+            })
+            .await
+        {
+            println!(
+                "Fence point {}: lat={}, lng={}",
+                point.idx, point.lat, point.lng
+            );
+            points.push(point);
         }
     }
 
@@ -149,4 +150,44 @@ pub async fn create_geofence_queryable(
         })
         .await
         .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::param_id_is;
+
+    fn id16(s: &[u8]) -> [u8; 16] {
+        let mut a = [0u8; 16];
+        a[..s.len()].copy_from_slice(s);
+        a
+    }
+
+    #[test]
+    fn param_id_matches_nul_padded() {
+        assert!(param_id_is(&id16(b"FENCE_TOTAL"), "FENCE_TOTAL"));
+    }
+
+    #[test]
+    fn param_id_rejects_longer_name() {
+        assert!(!param_id_is(&id16(b"FENCE_TOTALX"), "FENCE_TOTAL"));
+        assert!(!param_id_is(&id16(b"FENCE_TOTAL_ABCD"), "FENCE_TOTAL"));
+    }
+
+    #[test]
+    fn param_id_rejects_prefix() {
+        assert!(!param_id_is(&id16(b"FENCE_TOTA"), "FENCE_TOTAL"));
+        assert!(!param_id_is(&id16(b"FENCE_TOT"), "FENCE_TOTAL"));
+    }
+
+    #[test]
+    fn param_id_full_16_bytes_no_nul() {
+        assert!(param_id_is(&id16(b"ABCDEFGHIJKLMNOP"), "ABCDEFGHIJKLMNOP"));
+        assert!(!param_id_is(&id16(b"ABCDEFGHIJKLMNOP"), "ABCDEFGHIJKLMNOPQ"));
+    }
+
+    #[test]
+    fn param_id_empty() {
+        assert!(!param_id_is(&[0u8; 16], "FENCE_TOTAL"));
+        assert!(param_id_is(&[0u8; 16], ""));
+    }
 }
