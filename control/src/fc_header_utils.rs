@@ -9,6 +9,7 @@
 //! Optional env `CU_FC_SYSID=<1..255>`: only accept an autopilot with that system id
 //! (useful if one link carries several vehicles). Unset = first autopilot seen wins.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -40,7 +41,18 @@ pub struct GpiSnapshot {
     pub at: Instant,
 }
 
+/// Vehicle types that are never the FC even if they report an autopilot type.
+const NOT_FC_TYPES: [MavType; 6] = [
+    MavType::MAV_TYPE_GCS,
+    MavType::MAV_TYPE_ONBOARD_CONTROLLER,
+    MavType::MAV_TYPE_GIMBAL,
+    MavType::MAV_TYPE_CAMERA,
+    MavType::MAV_TYPE_ADSB,
+    MavType::MAV_TYPE_ANTENNA_TRACKER,
+];
+
 static FC: OnceLock<FcIdentity> = OnceLock::new();
+static OTHER_AUTOPILOT_LOGGED: AtomicBool = AtomicBool::new(false);
 static EXPECTED_SYSID: OnceLock<Option<u8>> = OnceLock::new();
 static LAST_GPI: Mutex<Option<GpiSnapshot>> = Mutex::new(None);
 
@@ -53,7 +65,7 @@ pub fn identity_from_heartbeat(
     if header.system_id == 0 {
         return None; // 0 is the broadcast id, never a valid source
     }
-    if hb.autopilot == MavAutopilot::MAV_AUTOPILOT_INVALID || hb.mavtype == MavType::MAV_TYPE_GCS {
+    if hb.autopilot == MavAutopilot::MAV_AUTOPILOT_INVALID || NOT_FC_TYPES.contains(&hb.mavtype) {
         return None;
     }
     if let Some(want) = expected_sysid
@@ -100,14 +112,28 @@ fn expected_sysid() -> Option<u8> {
 pub fn observe(header: &MavHeader, msg: &MavMessage) {
     match msg {
         MavMessage::HEARTBEAT(hb) => {
-            if FC.get().is_none()
-                && let Some(id) = identity_from_heartbeat(header, hb, expected_sysid())
-                && FC.set(id).is_ok()
-            {
-                println!(
-                    "control: FC sysid={} compid={} autopilot={:?} type={:?}",
-                    id.sysid, id.compid, id.autopilot, hb.mavtype
-                );
+            let Some(id) = identity_from_heartbeat(header, hb, expected_sysid()) else {
+                return;
+            };
+            match FC.get() {
+                None => {
+                    if FC.set(id).is_ok() {
+                        println!(
+                            "control: FC sysid={} compid={} autopilot={:?} type={:?}",
+                            id.sysid, id.compid, id.autopilot, hb.mavtype
+                        );
+                    }
+                }
+                Some(fc) if fc.sysid != id.sysid => {
+                    // identity is fixed for the process lifetime; say so once
+                    if !OTHER_AUTOPILOT_LOGGED.swap(true, Ordering::Relaxed) {
+                        eprintln!(
+                            "control: WARNING: autopilot HEARTBEAT from sysid {} ignored; FC is sysid {} (restart control to change)",
+                            id.sysid, fc.sysid
+                        );
+                    }
+                }
+                Some(_) => {}
             }
         }
         MavMessage::GLOBAL_POSITION_INT(d) => {
@@ -234,6 +260,23 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn fc_identity_rejects_peripherals_with_autopilot_set() {
+        for t in [
+            MavType::MAV_TYPE_GIMBAL,
+            MavType::MAV_TYPE_CAMERA,
+            MavType::MAV_TYPE_ADSB,
+            MavType::MAV_TYPE_ONBOARD_CONTROLLER,
+            MavType::MAV_TYPE_ANTENNA_TRACKER,
+        ] {
+            assert_eq!(
+                identity_from_heartbeat(&hdr(1, 100), &hb(t, MavAutopilot::MAV_AUTOPILOT_GENERIC), None),
+                None,
+                "{t:?}"
+            );
+        }
     }
 
     #[test]

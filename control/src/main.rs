@@ -64,8 +64,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let vehicle = Arc::new(mavconn);
 
-    // shutdown signal
+    // shutdown signal; the Ctrl-C/SIGINT handler is installed first so a clean
+    // shutdown also works while control is still waiting for the FC
     let running = Arc::new(AtomicBool::new(true));
+    {
+        let running = running.clone();
+        ctrlc::set_handler(move || {
+            running.store(false, Ordering::Release);
+        })
+        .expect("Error setting Ctrl-C handler");
+    }
 
     let (bc_tx, _) = tokio::sync::broadcast::channel::<(mavlink::MavHeader, MavMessage)>(128);
     // Spawn one dedicated recv loop that only calls vehicle.recv() and bc_tx.send()
@@ -137,14 +145,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _geofence_query =
         create_geofence_queryable(&session, geofence_vehicle, bc_tx.clone()).await;
 
-    get_missions(&vehicle.clone(), &mut bc_tx.subscribe()).await;
+    // mission download waits for the FC identity; run it in the background
+    tokio::spawn({
+        let vehicle = vehicle.clone();
+        let mut rx = bc_tx.subscribe();
+        async move {
+            get_missions(&vehicle, &mut rx).await;
+        }
+    });
     let _sqarm_sub = init_squidarm(vehicle.clone(), &session);
-
-    // Wait for Ctrl+C
-    ctrlc::set_handler(move || {
-        running.store(false, Ordering::Release);
-    })
-    .expect("Error setting Ctrl-C handler");
 
     // Join threads
 
@@ -159,6 +168,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     Ok(())
 }
+
+/// MAVLink message id of GLOBAL_POSITION_INT.
+const GPI_MSG_ID: f32 = 33.0;
+/// Requested GLOBAL_POSITION_INT interval, us (5 Hz). goto::GPI_MAX_AGE (1 s) assumes this.
+const GPI_INTERVAL_US: f32 = 200_000.0;
 
 async fn request_global_position_int(
     vehicle: &SharedAsyncMavConn,
@@ -175,8 +189,8 @@ async fn request_global_position_int(
         target_component: fc.compid,
         command: MavCmd::MAV_CMD_SET_MESSAGE_INTERVAL,
         confirmation: 0,
-        param1: 33.0,      // GLOBAL_POSITION_INT
-        param2: 200_000.0, // 5 Hz in microseconds
+        param1: GPI_MSG_ID,
+        param2: GPI_INTERVAL_US,
         param3: 0.0,
         param4: 0.0,
         param5: 0.0,

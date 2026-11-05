@@ -17,6 +17,9 @@ pub const GPI_MAX_AGE: Duration = Duration::from_secs(1);
 pub enum RepositionError {
     /// No GLOBAL_POSITION_INT from the FC yet, so the home AMSL altitude is unknown.
     NoPositionOffset,
+    /// alt == relative_alt: PX4 reports this while home has no valid altitude
+    /// (GLOBAL_POSITION_INT stream), so the offset would wrongly be 0.
+    HomeNotSet,
     /// The last GLOBAL_POSITION_INT is older than GPI_MAX_AGE.
     StalePosition(Duration),
     /// This frame cannot be sent safely to this autopilot.
@@ -49,6 +52,10 @@ pub fn plan_reposition(
                 let age = now.saturating_duration_since(g.at);
                 if age > GPI_MAX_AGE {
                     return Err(RepositionError::StalePosition(age));
+                }
+                // Fail closed. Also refuses a valid home at exactly 0 mm AMSL (accepted cost).
+                if g.alt_mm == g.relative_alt_mm {
+                    return Err(RepositionError::HomeNotSet);
                 }
                 let home_amsl_m = (f64::from(g.alt_mm) - f64::from(g.relative_alt_mm)) / 1000.0;
                 Ok((MavFrame::MAV_FRAME_GLOBAL, (f64::from(z_m) + home_amsl_m) as f32))
@@ -212,6 +219,16 @@ mod tests {
         // exactly at the limit is still accepted
         let now = t0 + GPI_MAX_AGE;
         assert!(plan_reposition(PX4, REL, 20.0, snap(312_000, 12_000, t0), now).is_ok());
+    }
+
+    #[test]
+    fn reposition_alt_px4_home_not_set_refused() {
+        // PX4 sets relative_alt = alt when home altitude is not valid
+        let t = Instant::now();
+        assert_eq!(
+            plan_reposition(PX4, REL, 20.0, snap(312_000, 312_000, t), t),
+            Err(RepositionError::HomeNotSet)
+        );
     }
 
     #[test]

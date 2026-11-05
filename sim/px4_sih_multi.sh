@@ -56,7 +56,6 @@ done
 [ -n "$OUT" ] || die "--out is required"
 mkdir -p "$OUT" || die "cannot create $OUT"
 OUT=$(cd "$OUT" && pwd)
-rm -rf "$OUT"/px4-* "$OUT"/*.log "$OUT"/*.json5 "$OUT"/summary.txt "$OUT"/ps.txt
 
 # ---- serialise all PX4 SITL runs on this machine
 exec 9>"$LOCK" || die "cannot open lock $LOCK"
@@ -64,6 +63,7 @@ if ! flock -n 9; then
   echo "waiting for SITL lock $LOCK ..."
   flock -w 900 9 || die "SITL lock not acquired in 900 s"
 fi
+rm -rf "$OUT"/px4-* "$OUT"/*.log "$OUT"/*.json5 "$OUT"/summary.txt "$OUT"/ps.txt
 
 # ---- refuse to start if any port/socket of our instances is in use
 busy=""
@@ -72,7 +72,8 @@ for i in $(seq 0 $((N-1))); do
   for p in $((14540+i)) $((14580+i)) $((18570+i)) $((13030+i)) $((14280+i)) $((14030+i)) $((13280+i)) $((19410+i)) $((19450+i)); do
     port_used "$p" && busy="$busy $p"
   done
-  [ -e "/tmp/px4-sock-$i" ] && busy="$busy /tmp/px4-sock-$i"
+  # PX4 leaves /tmp/px4-sock-i behind on exit, so test for a listener, not the file
+  ss -Hxl 2>/dev/null | grep -q "/tmp/px4-sock-$i " && busy="$busy /tmp/px4-sock-$i"
 done
 port_used "$ZPORT" && busy="$busy tcp:$ZPORT"
 [ -z "$busy" ] || die "in use, refusing to start:$busy"
@@ -95,6 +96,7 @@ stop_pid() {  # stop_pid <pid> <first signal>: signal children and the pid, then
 
 cleanup() {
   [ "$CLEANED" = 1 ] && return; CLEANED=1
+  trap '' INT TERM   # a second Ctrl-C must not abort the cleanup
   local i p
   for i in "${!CTL_PIDS[@]}"; do   # controls first, SIGINT = their Ctrl-C handler
     p=${CTL_PIDS[$i]}
@@ -177,6 +179,8 @@ while :; do
   [ "$el" -ge "$DURATION" ] && break
   sleep "$SAMPLE_PERIOD_S"
 done
+SUBS_ALIVE=yes
+for p in "${SUB_PIDS[@]}"; do kill -0 "$p" 2>/dev/null || SUBS_ALIVE=no; done
 
 cleanup
 leftover=""
@@ -187,11 +191,12 @@ pass=1
 {
   echo "date=$(date -Is) n=$N duration_s=$DURATION zenoh=$ZEP zenohd=$("$ZDIR/zenohd" --version 2>&1 | head -1)"
   for i in $(seq 0 $((N-1))); do
-    g=$(grep -o "cu$i/control/telem/gl_pos_int" "$OUT/zsub-cu$i.log" | wc -l)
-    a=$(grep -o "cu$i/control/telem/attitude" "$OUT/zsub-cu$i.log" | wc -l)
-    h=$(grep -o "cu$i/control/health/heartbeat" "$OUT/zsub-cu$i.log" | wc -l)
+    # -a: payloads are binary flatbuffers and may contain NUL bytes
+    g=$(grep -ao "cu$i/control/telem/gl_pos_int" "$OUT/zsub-cu$i.log" | wc -l)
+    a=$(grep -ao "cu$i/control/telem/attitude" "$OUT/zsub-cu$i.log" | wc -l)
+    h=$(grep -ao "cu$i/control/health/heartbeat" "$OUT/zsub-cu$i.log" | wc -l)
     sysid=$(grep -o 'FC sysid=[0-9]*' "$OUT/control-$i.log" | head -1 | cut -d= -f2)
-    pan=$(grep -c panicked "$OUT/control-$i.log")
+    pan=$(grep -ac panicked "$OUT/control-$i.log")
     rc=${CTL_RC[$i]:-none}
     echo "cu$i samples gl_pos_int=$g attitude=$a heartbeat=$h"
     echo "control$i fc_sysid=${sysid:-none} expected_sysid=$((i+1)) alive_at_60s=${ALIVE[$i]:-unknown} exit_rc=$rc panicked=$pan"
@@ -201,9 +206,11 @@ pass=1
     [ "$rc" = 0 ] || { pass=0; echo "FAIL control$i exit rc $rc (want 0 after SIGINT)"; }
     [ "$pan" = 0 ] || { pass=0; echo "FAIL control$i panicked"; }
   done
-  bare=$(grep -c "Received" "$OUT/zsub-bare.log")
-  echo "bare control/** samples=$bare"
+  bare=$(grep -ac "Received" "$OUT/zsub-bare.log")
+  bare_decl=$(grep -ac "Declaring Subscriber" "$OUT/zsub-bare.log")
+  echo "bare control/** samples=$bare subscriber_declared=$bare_decl subscribers_alive_at_end=$SUBS_ALIVE"
   [ "$bare" = 0 ] || { pass=0; echo "FAIL bare control/** received $bare samples"; }
+  [ "$bare_decl" -ge 1 ] && [ "$SUBS_ALIVE" = yes ] || { pass=0; echo "FAIL a z_sub was not running for the whole run"; }
   pk=""; for c in "${!PEAK_RSS[@]}"; do pk="$pk $c:${PEAK_RSS[$c]}"; done
   echo "peak_rss_kb${pk}"
   echo "cpu_pct_at_${ALIVE_CHECK_S}s $CPU_AT_CHECK"
