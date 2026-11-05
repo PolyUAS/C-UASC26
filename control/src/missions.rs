@@ -1,7 +1,7 @@
 use crate::SharedAsyncMavConn;
 use crate::missions::waypoint::WaypointListArgs;
 
-use crate::fc_header_utils::wait_for_headers;
+use crate::fc_header_utils::wait_for_fc;
 
 use crate::generated::waypoint_generated::waypoint;
 use crate::generated::waypoint_generated::waypoint::Waypoint;
@@ -37,7 +37,8 @@ pub async fn get_missions(
     vehicle: &SharedAsyncMavConn,
     bc_rx: &mut Receiver<(MavHeader, MavMessage)>,
 ) -> Vec<MissionSegment> {
-    let (sys, comp) = wait_for_headers().await;
+    let fc = wait_for_fc("mission download").await;
+    let (sys, comp) = (fc.sysid, fc.compid);
 
     vehicle
         .send_default(&MavMessage::MISSION_REQUEST_LIST(
@@ -66,9 +67,14 @@ pub async fn get_missions(
         _ => None,
     };
 
+    let Some(mission_count) = mission_count else {
+        eprintln!("control: WARNING: no MISSION_COUNT from the FC within 2 s; continuing with no mission");
+        return Vec::new();
+    };
+
     let mut packets = Vec::new();
 
-    for i in 0..mission_count.expect("Failed to collect missions") {
+    for i in 0..mission_count {
         let _ = vehicle
             .send_default(&MavMessage::MISSION_REQUEST_INT(MISSION_REQUEST_INT_DATA {
                 seq: i,
